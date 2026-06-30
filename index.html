@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v12.2 (Mobile Optimized)</title>
+<title>Slot Exam System v12.3 (Bottom Bar Rolled Back)</title>
 
 <style>
 body {
@@ -11,7 +11,7 @@ body {
     background: #f4f6f8;
     margin: 0;
     padding: 15px;
-    padding-bottom: 40px;
+    padding-bottom: 90px; /* 하단 고정바가 지문을 가리지 않도록 바닥 여백 확보 */
     -webkit-text-size-adjust: 100%;
 }
 
@@ -39,7 +39,7 @@ body {
 
 .tab button {
     flex: 1;
-    padding: 12px; /* タッチしやすいように少し拡大 */
+    padding: 12px;
     border: none;
     border-radius: 8px;
     background: #ddd;
@@ -61,7 +61,7 @@ textarea, input, select {
     border-radius: 8px;
     border: 1px solid #ccc;
     box-sizing: border-box;
-    font-size: 16px; /* iOSの自動ズーム防止用の16px確保 */
+    font-size: 16px; /* iOS 자동 줌 방지 */
 }
 
 button {
@@ -151,21 +151,11 @@ small { color: gray; font-size: 12px; }
     border-left: 3px solid red;
     background: #fff3f3;
     border-radius: 4px;
-    flex-break: always; /* 改行用 */
     width: 100%;
 }
 
-/* 試験コントロールエリア（上部に配置） */
-.examCtrlBlock {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
-    margin-bottom: 15px;
-}
-.examCtrlBlock button {
-    flex: 1;
-    margin-top: 0;
-    padding: 14px;
+#examOut {
+    padding-bottom: 60px;
 }
 
 /* 試験セッション */
@@ -191,12 +181,41 @@ small { color: gray; font-size: 12px; }
     color: gray;
     text-align: center;
 }
+
+/* 🔄 롤백: 하단 고정 버튼 바 스타일 */
+.gradeBar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(5px);
+    padding: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom)); /* 아이폰/패드 하단 홈바 대응 */
+    box-shadow: 0 -3px 15px rgba(0,0,0,0.1);
+    z-index: 999;
+    display: flex;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.gradeBar button {
+    width: 90%;
+    font-size: 16px;
+    padding: 14px;
+    margin-top: 0;
+    transition: width 0.2s ease;
+}
+
+.gradeBar button.half {
+    width: 47%;
+}
 </style>
 </head>
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v12.2</div>
+<div class="top">📦 SLOT EXAM SYSTEM v12.3</div>
 
 <div class="tab">
 <button id="btnDB" class="active">📚 データベース</button>
@@ -231,14 +250,12 @@ small { color: gray; font-size: 12px; }
     <button id="btnStartCase">試験開始</button>
 </div>
 
-<div id="examCtrlArea" class="hidden">
-    <div class="examCtrlBlock">
-        <button id="btnGrade" style="background: #27ae60;">🎯 採点する</button>
-        <button id="btnRetryWrong" class="hidden" style="background: #e67e22;">🔁 誤答のみ再出題</button>
-    </div>
+<div id="examOut"></div>
 </div>
 
-<div id="examOut"></div>
+<div id="examCtrlArea" class="gradeBar hidden">
+    <button id="btnGrade" style="background: #27ae60;">🎯 答え合わせ（採点）</button>
+    <button id="btnRetryWrong" class="hidden" style="background: #e67e22; margin-left: 10px;">🔁 誤答のみ再出題</button>
 </div>
 
 <script type="module">
@@ -280,7 +297,6 @@ async function saveToFirestore(newData) {
         await setDoc(docRef, { questions: newData });
     } catch (error) {
         console.error("Error saving data:", error);
-        alert("データの保存に失敗しました。");
     }
 }
 
@@ -296,12 +312,16 @@ function showTab(tab) {
         examArea.classList.add("hidden");
         btnDB.classList.add("active");
         btnExam.classList.remove("active");
+        document.getElementById("examCtrlArea").classList.add("hidden"); // DB탭에선 하단바 숨김
         renderDB();
     } else {
         examArea.classList.remove("hidden");
         dbArea.classList.add("hidden");
         btnExam.classList.add("active");
         btnDB.classList.remove("active");
+        if (currentTest.length > 0) {
+            document.getElementById("examCtrlArea").classList.remove("hidden");
+        }
     }
 }
 
@@ -414,6 +434,9 @@ function shuffle(arr) {
 
 function resetGradeButtons() {
     document.getElementById("btnRetryWrong").classList.add("hidden");
+    const btnGrade = document.getElementById("btnGrade");
+    btnGrade.className = ""; // half 클래스 제거
+    btnGrade.style.width = "90%";
     document.getElementById("examCtrlArea").classList.remove("hidden");
 }
 
@@ -448,7 +471,7 @@ function renderExam(testData, title) {
         for (let j = 0; j < q.answers.length; j++) {
             inputs += `
             <div class="answerRow">
-                <input class="answerBox" id="ans_${i}_${j}" data-q="${i}" data-a="${j}" placeholder="空欄 ${j+1} の解答" enterkeyhint="next">
+                <input class="answerBox" id="ans_${i}_${j}" placeholder="空欄 ${j+1} の解答" enterkeyhint="next">
                 <div class="result" id="res_${i}_${j}"></div>
             </div>`;
         }
@@ -465,7 +488,7 @@ function renderExam(testData, title) {
     html += `<div class="examFooter">採点ボタンを押すまで結果は表示されません</div></div>`;
     document.getElementById("examOut").innerHTML = html;
 
-    // 💡 モ바일最適化：첫 번째 빈칸으로 자동 포커스 이동 및 Enter 핸들링
+    // 포커스 자동 매칭 및 엔터 바인딩
     setTimeout(() => {
         const firstInput = document.querySelector(".answerBox");
         if (firstInput) firstInput.focus();
@@ -473,7 +496,6 @@ function renderExam(testData, title) {
     }, 100);
 }
 
-// 💡 モ바일最適化：Enter(이동) 키를 누르면 자동으로 다음 칸으로 포커싱하는 로직
 function bindInputEvents() {
     const inputs = Array.from(document.querySelectorAll(".answerBox"));
     inputs.forEach((input, index) => {
@@ -482,9 +504,9 @@ function bindInputEvents() {
                 e.preventDefault();
                 const nextInput = inputs[index + 1];
                 if (nextInput) {
-                    nextInput.focus(); // 다음 입력칸으로 패스
+                    nextInput.focus();
                 } else {
-                    input.blur(); // 마지막 칸이면 키보드 닫기
+                    input.blur();
                 }
             }
         });
@@ -525,10 +547,13 @@ function grade() {
     });
 
     if (hasWrong) {
+        const btnGrade = document.getElementById("btnGrade");
+        btnGrade.className = "half";
+        btnGrade.style.width = "47%";
         document.getElementById("btnRetryWrong").classList.remove("hidden");
     } else {
         alert("満点です！お見事！");
-        document.getElementById("btnRetryWrong").classList.add("hidden");
+        resetGradeButtons();
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -554,8 +579,8 @@ function retryWrongTests() {
 
     if (wrongQuestions.length > 0) {
         currentTest = wrongQuestions;
-        renderExam(currentTest, `🔁 誤答復傷試験 (${currentTest.length}問)`);
-        document.getElementById("btnRetryWrong").classList.add("hidden");
+        renderExam(currentTest, `🔁 誤答復習試験 (${currentTest.length}問)`);
+        resetGradeButtons();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 }
