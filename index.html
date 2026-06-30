@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>Slot Exam System v12.0 (Firestore)</title>
+<title>Slot Exam System v12.1 (Firestore)</title>
 
 <style>
 body {
@@ -27,7 +27,7 @@ body {
     box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-/* 탭 */
+/* タブ */
 .tab {
     display: flex;
     gap: 10px;
@@ -48,7 +48,7 @@ body {
     color: white;
 }
 
-/* 입력 */
+/* 入力項目 */
 textarea, input, select {
     width: 100%;
     padding: 10px;
@@ -68,7 +68,7 @@ button {
     cursor: pointer;
 }
 
-/* 문제 */
+/* 問題表示 */
 .question {
     padding: 10px;
     border-left: 4px solid #2d6cdf;
@@ -76,7 +76,7 @@ button {
     margin-top: 10px;
 }
 
-/* 빈칸 */
+/* 空欄ボックス */
 .blankBox {
     display: inline-block;
     width: 60px;
@@ -86,7 +86,7 @@ button {
     vertical-align: middle;
 }
 
-/* 답 */
+/* 解答エリア */
 .answerRow {
     display: flex;
     align-items: center;
@@ -114,7 +114,7 @@ button {
 
 small { color: gray; }
 
-/* DB 그룹 */
+/* DBグループ */
 .group {
     margin-bottom: 15px;
     padding: 10px;
@@ -129,7 +129,7 @@ small { color: gray; }
     margin-bottom: 5px;
 }
 
-/* 오답 힌트 */
+/* 誤答ヒント */
 .wrongHint {
     margin-top: 6px;
     margin-left: 40px;
@@ -140,12 +140,11 @@ small { color: gray; }
     background: #fff3f3;
 }
 
-/* 시험 UX */
 #examOut {
     padding-bottom: 80px;
 }
 
-/* 시험 세션 */
+/* 試験セッション */
 .examSession {
     background: white;
     border-radius: 12px;
@@ -170,7 +169,7 @@ small { color: gray; }
     text-align: center;
 }
 
-/* 채점 버튼 */
+/* 下部固定ボタンバー */
 .gradeBar {
     position: fixed;
     bottom: 0;
@@ -186,16 +185,20 @@ small { color: gray; }
 }
 
 .gradeBar button {
-    width: 90%;
-    font-size: 16px;
+    width: 45%;
+    font-size: 15px;
     padding: 12px;
+}
+
+.gradeBar button#btnGrade {
+    width: 90%; /* 初期状態（採点ボタンのみ）の幅 */
 }
 </style>
 </head>
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v12.0 (Firestore)</div>
+<div class="top">📦 SLOT EXAM SYSTEM v12.1 (Firestore)</div>
 
 <div class="tab">
 <button id="btnDB" class="active">📚 データベース</button>
@@ -245,6 +248,7 @@ small { color: gray; }
 
 <div class="gradeBar">
 <button id="btnGrade">🎯 答え合わせ（採点）</button>
+<button id="btnRetryWrong" class="hidden" style="background: #e67e22; margin-left: 10px;">🔁 間違えた問題のみ再出題</button>
 </div>
 
 <script type="module">
@@ -286,11 +290,11 @@ async function saveToFirestore(newData) {
         await setDoc(docRef, { questions: newData });
     } catch (error) {
         console.error("Error saving data:", error);
-        alert("データの保存に失敗しました。コンソールのエラーログまたはFirestoreのセキュリティルールを確認してください。");
+        alert("データの保存に失敗しました。Firestoreのセキュリティルールを確認してください。");
     }
 }
 
-/* ================= TAB UI 전환 ================= */
+/* ================= タブ切り替え ================= */
 function showTab(tab) {
     const dbArea = document.getElementById("dbArea");
     const examArea = document.getElementById("examArea");
@@ -311,7 +315,7 @@ function showTab(tab) {
     }
 }
 
-/* ================= DB 관리 기능 ================= */
+/* ================= データベース管理 ================= */
 function toggleDB() {
     document.getElementById("dbView").classList.toggle("hidden");
 }
@@ -342,12 +346,7 @@ function addQ() {
 
 function deleteQ(index) {
     db.splice(index, 1);
-    
-    db = db.map((q, i) => ({
-        ...q,
-        id: i + 1
-    }));
-
+    db = db.map((q, i) => ({ ...q, id: i + 1 }));
     saveToFirestore(db);
 }
 
@@ -363,9 +362,7 @@ function renderDB() {
 
     let html = "";
     Object.keys(grouped).forEach(group => {
-        html += `<div class="group">
-                    <div class="group-title">${group}</div>`;
-
+        html += `<div class="group"><div class="group-title">${group}</div>`;
         grouped[group].forEach(q => {
             html += `
             <div class="question">
@@ -387,7 +384,7 @@ function renderDB() {
     });
 }
 
-/* ================= 시험 모드 구성 ================= */
+/* ================= モード設定 ================= */
 function setExamMode(mode) {
     examMode = mode;
     const randomMode = document.getElementById("randomMode");
@@ -415,7 +412,7 @@ function renderCaseSelect() {
     select.innerHTML = cases.map(c => `<option value="${c}">${c}</option>`).join("");
 }
 
-/* ================= 시험 생성 및 무작위 셔플 ================= */
+/* ================= 試験生成 & シャッフル ================= */
 function shuffle(arr) {
     let a = [...arr];
     for (let i = a.length - 1; i > 0; i--) {
@@ -425,11 +422,18 @@ function shuffle(arr) {
     return a;
 }
 
+function resetGradeButtons() {
+    // 新しい試験を始めるときは、再出題ボタンを隠して採点ボタンを全幅に戻す
+    document.getElementById("btnRetryWrong").classList.add("hidden");
+    document.getElementById("btnGrade").style.width = "90%";
+}
+
 function makeRandomTest() {
     let n = parseInt(document.getElementById("count").value || "1");
     const filteredDb = db.filter(q => q);
     currentTest = shuffle(filteredDb).slice(0, n);
     renderExam(currentTest, `🎯 ランダム試験 (${n}問)`);
+    resetGradeButtons();
 }
 
 function makeCaseTest() {
@@ -441,14 +445,12 @@ function makeCaseTest() {
     let selected = selectEl.value;
     currentTest = db.filter(q => q && (q.caseName || "未分類") === selected);
     renderExam(currentTest, `📘 判例別試験: ${selected}`);
+    resetGradeButtons();
 }
 
 function renderExam(testData, title) {
     let html = "";
-    html += `
-    <div class="examSession">
-        <div class="examHeader">${title}</div>
-    `;
+    html += `<div class="examSession"><div class="examHeader">${title}</div>`;
 
     testData.forEach((q, i) => {
         let masked = q.question.replace(/\{.*?\}/g, `<span class="blankBox"></span>`);
@@ -471,17 +473,15 @@ function renderExam(testData, title) {
         </div>`;
     });
 
-    html += `
-        <div class="examFooter">採点ボタンを押すまで結果は表示されません</div>
-    </div>
-    `;
-
+    html += `<div class="examFooter">採点ボタンを押すまで結果は表示されません</div></div>`;
     document.getElementById("examOut").innerHTML = html;
 }
 
-/* ================= 정답 채점하기 ================= */
+/* ================= 答え合わせ（採点） ================= */
 function grade() {
     if (currentTest.length === 0) return;
+
+    let hasWrong = false;
 
     currentTest.forEach((q, i) => {
         for (let j = 0; j < q.answers.length; j++) {
@@ -495,6 +495,7 @@ function grade() {
             } else {
                 box.innerHTML = "X";
                 box.className = "result no";
+                hasWrong = true;
 
                 let hintId = `hint_${i}_${j}`;
                 if (!document.getElementById(hintId)) {
@@ -507,9 +508,45 @@ function grade() {
             }
         }
     });
+
+    // 間違えた問題がある場合、再出題ボタンを表示してボタン幅を調整
+    if (hasWrong) {
+        document.getElementById("btnGrade").style.width = "45%";
+        document.getElementById("btnRetryWrong").classList.remove("hidden");
+    } else {
+        alert("満点です！お見事！");
+        resetGradeButtons();
+    }
 }
 
-/* ================= 이벤트 바인딩 ================= */
+/* ================= 間違えた問題のみ再出題 ================= */
+function retryWrongTests() {
+    let wrongQuestions = [];
+
+    currentTest.forEach((q, i) => {
+        let isCurrentQuestionWrong = false;
+        for (let j = 0; j < q.answers.length; j++) {
+            let user = (document.getElementById(`ans_${i}_${j}`).value || "").trim();
+            let correct = q.answers[j].trim();
+            if (user !== correct) {
+                isCurrentQuestionWrong = true;
+                break;
+            }
+        }
+        if (isCurrentQuestionWrong) {
+            wrongQuestions.push(q);
+        }
+    });
+
+    if (wrongQuestions.length > 0) {
+        currentTest = wrongQuestions;
+        renderExam(currentTest, `🔁 誤答復習試験 (${currentTest.length}問)`);
+        resetGradeButtons();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+/* ================= イベントリスナーの紐付け ================= */
 document.getElementById("btnDB").addEventListener("click", () => showTab("db"));
 document.getElementById("btnExam").addEventListener("click", () => showTab("exam"));
 document.getElementById("btnToggleDB").addEventListener("click", toggleDB);
@@ -519,6 +556,7 @@ document.getElementById("modeCase").addEventListener("click", () => setExamMode(
 document.getElementById("btnStartRandom").addEventListener("click", makeRandomTest);
 document.getElementById("btnStartCase").addEventListener("click", makeCaseTest);
 document.getElementById("btnGrade").addEventListener("click", grade);
+document.getElementById("btnRetryWrong").addEventListener("click", retryWrongTests);
 
 </script>
 
