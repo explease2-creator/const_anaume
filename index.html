@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Slot Exam System v12.0 (Firestore)</title>
+
+<style>
+body {
+    font-family: -apple-system, "Helvetica Neue", "Segoe UI", sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 20px;
+}
+
+.top {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* カード */
+.card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+/* 탭 */
+.tab {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.tab button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #ddd;
+    cursor: pointer;
+}
+
+.tab button.active {
+    background: #2d6cdf;
+    color: white;
+}
+
+/* 입력 */
+textarea, input, select {
+    width: 100%;
+    padding: 10px;
+    margin-top: 5px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+button {
+    padding: 10px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 8px;
+    background: #2d6cdf;
+    color: white;
+    cursor: pointer;
+}
+
+/* 문제 */
+.question {
+    padding: 10px;
+    border-left: 4px solid #2d6cdf;
+    background: #fafafa;
+    margin-top: 10px;
+}
+
+/* 빈칸 */
+.blankBox {
+    display: inline-block;
+    width: 60px;
+    height: 14px;
+    border-bottom: 2px solid #333;
+    margin: 0 4px;
+    vertical-align: middle;
+}
+
+/* 답 */
+.answerRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 5px;
+}
+
+.answerBox {
+    flex: 1;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.result {
+    width: 40px;
+    text-align: center;
+    font-weight: bold;
+}
+
+.ok { color: green; }
+.no { color: red; }
+
+.hidden { display: none; }
+
+small { color: gray; }
+
+/* DB 그룹 */
+.group {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 8px;
+    background: #f9f9f9;
+}
+
+.group-title {
+    font-weight: bold;
+    font-size: 16px;
+    color: #2d6cdf;
+    margin-bottom: 5px;
+}
+
+/* 오답 힌트 */
+.wrongHint {
+    margin-top: 6px;
+    margin-left: 40px;
+    padding: 6px;
+    font-size: 13px;
+    color: #d33;
+    border-left: 3px solid red;
+    background: #fff3f3;
+}
+
+/* 시험 UX */
+#examOut {
+    padding-bottom: 80px;
+}
+
+/* 시험 세션 */
+.examSession {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    margin-top: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+.examHeader {
+    font-weight: bold;
+    font-size: 16px;
+    margin-bottom: 10px;
+    color: #2d6cdf;
+}
+
+.examFooter {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+    font-size: 13px;
+    color: gray;
+    text-align: center;
+}
+
+/* 채점 버튼 */
+.gradeBar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: white;
+    padding: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    z-index: 999;
+    display: flex;
+    justify-content: center;
+}
+
+.gradeBar button {
+    width: 90%;
+    font-size: 16px;
+    padding: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="top">📦 SLOT EXAM SYSTEM v12.0 (Firestore)</div>
+
+<div class="tab">
+<button id="btnDB" class="active">📚 データベース</button>
+<button id="btnExam">🎯 穴埋め試験</button>
+</div>
+
+<div id="dbArea" class="card">
+
+<h3>📥 問題登録</h3>
+
+<input id="caseName" placeholder="判例名・事件名">
+<input id="note" placeholder="解説・注意点など">
+<textarea id="qText" placeholder="問題文 ( 空欄にしたい部分を {正解} のように囲んで入力 )"></textarea>
+
+<button id="btnAddQ">追加する</button>
+
+<hr>
+
+<button id="btnToggleDB">📚 登録問題の一覧 表示/非表示</button>
+
+<div id="dbView" class="hidden"></div>
+
+</div>
+
+<div id="examArea" class="card hidden">
+
+<h3>🎯 試験作成</h3>
+
+<div class="tab">
+<button id="modeRandom" class="active">ランダム</button>
+<button id="modeCase">判例別</button>
+</div>
+
+<div id="randomMode">
+    <input id="count" placeholder="出題問題数">
+    <button id="btnStartRandom">試験開始</button>
+</div>
+
+<div id="caseMode" class="hidden">
+    <select id="caseSelect"></select>
+    <button id="btnStartCase">試験開始</button>
+</div>
+
+<div id="examOut"></div>
+
+</div>
+
+<div class="gradeBar">
+<button id="btnGrade">🎯 答え合わせ（採点）</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCXguxQRx0qF0hhPZ0HXRO3gYXea9HJjao",
+    authDomain: "const-slot.firebaseapp.com",
+    projectId: "const-slot",
+    storageBucket: "const-slot.firebasestorage.app",
+    messagingSenderId: "396005964783",
+    appId: "1:396005964783:web:de2fa4d6928b6ab756541a"
+};
+
+const app = initializeApp(firebaseConfig);
+const dbInstance = getFirestore(app);
+const docRef = doc(dbInstance, "exams", "slot_db_doc");
+
+let db = []; 
+let currentTest = [];
+let examMode = "random";
+
+onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        db = data.questions ? data.questions : [];
+    } else {
+        db = [];
+    }
+    renderDB();
+    if (examMode === "case") {
+        renderCaseSelect();
+    }
+});
+
+async function saveToFirestore(newData) {
+    try {
+        await setDoc(docRef, { questions: newData });
+    } catch (error) {
+        console.error("Error saving data:", error);
+        alert("データの保存に失敗しました。コンソールのエラーログまたはFirestoreのセキュリティルールを確認してください。");
+    }
+}
+
+/* ================= TAB UI 전환 ================= */
+function showTab(tab) {
+    const dbArea = document.getElementById("dbArea");
+    const examArea = document.getElementById("examArea");
+    const btnDB = document.getElementById("btnDB");
+    const btnExam = document.getElementById("btnExam");
+
+    if (tab === "db") {
+        dbArea.classList.remove("hidden");
+        examArea.classList.add("hidden");
+        btnDB.classList.add("active");
+        btnExam.classList.remove("active");
+        renderDB();
+    } else {
+        examArea.classList.remove("hidden");
+        dbArea.classList.add("hidden");
+        btnExam.classList.add("active");
+        btnDB.classList.remove("active");
+    }
+}
+
+/* ================= DB 관리 기능 ================= */
+function toggleDB() {
+    document.getElementById("dbView").classList.toggle("hidden");
+}
+
+function addQ() {
+    const caseName = document.getElementById("caseName").value;
+    const note = document.getElementById("note").value;
+    const question = document.getElementById("qText").value;
+
+    if (!question.trim()) return;
+
+    let answers = [...question.matchAll(/\{(.*?)\}/g)].map(m => m[1]);
+
+    db.push({
+        id: db.length + 1,
+        caseName,
+        note,
+        question,
+        answers
+    });
+
+    saveToFirestore(db);
+
+    document.getElementById("caseName").value = "";
+    document.getElementById("note").value = "";
+    document.getElementById("qText").value = "";
+}
+
+function deleteQ(index) {
+    db.splice(index, 1);
+    
+    db = db.map((q, i) => ({
+        ...q,
+        id: i + 1
+    }));
+
+    saveToFirestore(db);
+}
+
+function renderDB() {
+    let grouped = {};
+
+    db.forEach((q, idx) => {
+        if (!q) return; 
+        let key = q.caseName || "未分類";
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push({ ...q, _idx: idx });
+    });
+
+    let html = "";
+    Object.keys(grouped).forEach(group => {
+        html += `<div class="group">
+                    <div class="group-title">${group}</div>`;
+
+        grouped[group].forEach(q => {
+            html += `
+            <div class="question">
+                <button class="btn-delete" data-idx="${q._idx}" style="float:right; background:red; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer;">削除</button>
+                <small>${q.note || ""}</small><br>
+                ${q.question}
+            </div>`;
+        });
+        html += `</div>`;
+    });
+
+    document.getElementById("dbView").innerHTML = html;
+
+    document.querySelectorAll(".btn-delete").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+            const idx = parseInt(e.target.getAttribute("data-idx"));
+            deleteQ(idx);
+        });
+    });
+}
+
+/* ================= 시험 모드 구성 ================= */
+function setExamMode(mode) {
+    examMode = mode;
+    const randomMode = document.getElementById("randomMode");
+    const caseMode = document.getElementById("caseMode");
+    const btnRandom = document.getElementById("modeRandom");
+    const btnCase = document.getElementById("modeCase");
+
+    if (mode === "random") {
+        randomMode.classList.remove("hidden");
+        caseMode.classList.add("hidden");
+        btnRandom.classList.add("active");
+        btnCase.classList.remove("active");
+    } else {
+        randomMode.classList.add("hidden");
+        caseMode.classList.remove("hidden");
+        btnCase.classList.add("active");
+        btnRandom.classList.remove("active");
+        renderCaseSelect();
+    }
+}
+
+function renderCaseSelect() {
+    const select = document.getElementById("caseSelect");
+    let cases = [...new Set(db.filter(q => q).map(q => q.caseName || "未分類"))];
+    select.innerHTML = cases.map(c => `<option value="${c}">${c}</option>`).join("");
+}
+
+/* ================= 시험 생성 및 무작위 셔플 ================= */
+function shuffle(arr) {
+    let a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+        let j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+}
+
+function makeRandomTest() {
+    let n = parseInt(document.getElementById("count").value || "1");
+    const filteredDb = db.filter(q => q);
+    currentTest = shuffle(filteredDb).slice(0, n);
+    renderExam(currentTest, `🎯 ランダム試験 (${n}問)`);
+}
+
+function makeCaseTest() {
+    const selectEl = document.getElementById("caseSelect");
+    if(!selectEl.value) {
+        alert("選択可能な判例がありません。");
+        return;
+    }
+    let selected = selectEl.value;
+    currentTest = db.filter(q => q && (q.caseName || "未分類") === selected);
+    renderExam(currentTest, `📘 判例別試験: ${selected}`);
+}
+
+function renderExam(testData, title) {
+    let html = "";
+    html += `
+    <div class="examSession">
+        <div class="examHeader">${title}</div>
+    `;
+
+    testData.forEach((q, i) => {
+        let masked = q.question.replace(/\{.*?\}/g, `<span class="blankBox"></span>`);
+        let inputs = "";
+
+        for (let j = 0; j < q.answers.length; j++) {
+            inputs += `
+            <div class="answerRow">
+                <input class="answerBox" id="ans_${i}_${j}" placeholder="空欄 ${j+1} の解答">
+                <div class="result" id="res_${i}_${j}"></div>
+            </div>`;
+        }
+
+        html += `
+        <div class="question">
+            <b>${i + 1}. ${q.caseName || ""}</b><br>
+            <small>${q.note || ""}</small><br>
+            ${masked}
+            ${inputs}
+        </div>`;
+    });
+
+    html += `
+        <div class="examFooter">採点ボタンを押すまで結果は表示されません</div>
+    </div>
+    `;
+
+    document.getElementById("examOut").innerHTML = html;
+}
+
+/* ================= 정답 채점하기 ================= */
+function grade() {
+    if (currentTest.length === 0) return;
+
+    currentTest.forEach((q, i) => {
+        for (let j = 0; j < q.answers.length; j++) {
+            let user = (document.getElementById(`ans_${i}_${j}`).value || "").trim();
+            let correct = q.answers[j].trim();
+            let box = document.getElementById(`res_${i}_${j}`);
+
+            if (user === correct) {
+                box.innerHTML = "O";
+                box.className = "result ok";
+            } else {
+                box.innerHTML = "X";
+                box.className = "result no";
+
+                let hintId = `hint_${i}_${j}`;
+                if (!document.getElementById(hintId)) {
+                    let hint = document.createElement("div");
+                    hint.id = hintId;
+                    hint.className = "wrongHint";
+                    hint.innerHTML = `正解: ${correct}`;
+                    box.parentElement.appendChild(hint);
+                }
+            }
+        }
+    });
+}
+
+/* ================= 이벤트 바인딩 ================= */
+document.getElementById("btnDB").addEventListener("click", () => showTab("db"));
+document.getElementById("btnExam").addEventListener("click", () => showTab("exam"));
+document.getElementById("btnToggleDB").addEventListener("click", toggleDB);
+document.getElementById("btnAddQ").addEventListener("click", addQ);
+document.getElementById("modeRandom").addEventListener("click", () => setExamMode("random"));
+document.getElementById("modeCase").addEventListener("click", () => setExamMode("case"));
+document.getElementById("btnStartRandom").addEventListener("click", makeRandomTest);
+document.getElementById("btnStartCase").addEventListener("click", makeCaseTest);
+document.getElementById("btnGrade").addEventListener("click", grade);
+
+</script>
+
+</body>
+</html>
