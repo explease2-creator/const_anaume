@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v13.1 (Modal Fixed)</title>
+<title>Slot Exam System v13.2</title>
 
 <style>
 body {
@@ -21,7 +21,7 @@ body {
     margin-bottom: 10px;
 }
 
-/* 카드 */
+/* カード */
 .card {
     background: white;
     padding: 15px;
@@ -62,6 +62,14 @@ textarea, input, select {
     border: 1px solid #ccc;
     box-sizing: border-box;
     font-size: 16px; 
+}
+
+.form-label {
+    font-size: 13px;
+    font-weight: bold;
+    color: #555;
+    margin-top: 10px;
+    display: block;
 }
 
 button {
@@ -137,7 +145,6 @@ button {
 .ok { color: green; }
 .no { color: red; }
 
-/* 💡 인라인 스타일보다 확실하게 숨김을 강제하기 위한 !important 주입 */
 .hidden { display: none !important; }
 small { color: gray; font-size: 12px; }
 
@@ -237,7 +244,7 @@ small { color: gray; font-size: 12px; }
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v13.1</div>
+<div class="top">📦 SLOT EXAM SYSTEM v13.2</div>
 
 <div class="tab">
 <button id="btnDB" class="active">📚 データベース</button>
@@ -261,22 +268,21 @@ small { color: gray; font-size: 12px; }
 <div class="tab">
 <button id="modeRandom" class="active">ランダム</button>
 <button id="modeCase">判例別</button>
-<button id="modeTag">タグ別</button>
 </div>
 
 <div id="randomMode">
+    <span class="form-label">🎯 出題範囲 (タグ選択)</span>
+    <select id="tagSelect"></select>
+    
+    <span class="form-label">📝 出題問題数</span>
     <input id="count" type="number" pattern="[0-9]*" placeholder="出題問題数">
     <button id="btnStartRandom">試験開始</button>
 </div>
 
 <div id="caseMode" class="hidden">
+    <span class="form-label">📘 判例を選択</span>
     <select id="caseSelect"></select>
     <button id="btnStartCase">試験開始</button>
-</div>
-
-<div id="tagMode" class="hidden">
-    <select id="tagSelect"></select>
-    <button id="btnStartTag">試験開始</button>
 </div>
 
 <div id="examOut"></div>
@@ -343,8 +349,8 @@ async function saveToFirestore(newData) {
 }
 
 function refreshDropdowns() {
-    if (examMode === "case") renderCaseSelect();
-    if (examMode === "tag") renderTagSelect();
+    renderCaseSelect();
+    renderTagSelect();
 }
 
 /* ================= タブ切り替え ================= */
@@ -418,7 +424,6 @@ function deleteQ(index) {
     saveToFirestore(db);
 }
 
-/* 📱 🔄 수정 모달 제어 방식을 인라인 스타일 토글로 변경하여 확실하게 처리 */
 function openEditModal(index) {
     editingIndex = index;
     const q = db[index];
@@ -426,11 +431,11 @@ function openEditModal(index) {
     document.getElementById("editNote").value = q.note || "";
     document.getElementById("editTags").value = q.tags ? q.tags.join(", ") : "";
     document.getElementById("editQText").value = q.question || "";
-    document.getElementById("editModal").style.display = "flex"; // flex로 화면 중앙 노출
+    document.getElementById("editModal").style.display = "flex";
 }
 
 function closeEditModal() {
-    document.getElementById("editModal").style.display = "none"; // 완벽 은폐
+    document.getElementById("editModal").style.display = "none";
     editingIndex = null;
 }
 
@@ -494,27 +499,22 @@ function renderDB() {
 /* ================= モード設定 ================= */
 function setExamMode(mode) {
     examMode = mode;
-    const modes = {
-        random: document.getElementById("randomMode"),
-        case: document.getElementById("caseMode"),
-        tag: document.getElementById("tagMode")
-    };
-    const buttons = {
-        random: document.getElementById("modeRandom"),
-        case: document.getElementById("modeCase"),
-        tag: document.getElementById("modeTag")
-    };
+    const randomMode = document.getElementById("randomMode");
+    const caseMode = document.getElementById("caseMode");
+    const btnRandom = document.getElementById("modeRandom");
+    const btnCase = document.getElementById("modeCase");
 
-    Object.keys(modes).forEach(k => {
-        if (k === mode) {
-            modes[k].classList.remove("hidden");
-            buttons[k].classList.add("active");
-        } else {
-            modes[k].classList.add("hidden");
-            buttons[k].classList.remove("active");
-        }
-    });
-
+    if (mode === "random") {
+        randomMode.classList.remove("hidden");
+        caseMode.classList.add("hidden");
+        btnRandom.classList.add("active");
+        btnCase.classList.remove("active");
+    } else {
+        randomMode.classList.add("hidden");
+        caseMode.classList.remove("hidden");
+        btnCase.classList.add("active");
+        btnRandom.classList.remove("active");
+    }
     refreshDropdowns();
 }
 
@@ -524,11 +524,13 @@ function renderCaseSelect() {
     select.innerHTML = cases.map(c => `<option value="${c}">${c}</option>`).join("");
 }
 
+/* 랜덤 모드 내부에 위치할 태그 선택 드롭다운 생성 (전체 옵션 추가) */
 function renderTagSelect() {
     const select = document.getElementById("tagSelect");
-    let tagCounts = {};
+    const filteredDb = db.filter(q => q);
     
-    db.filter(q => q).forEach(q => {
+    let tagCounts = {};
+    filteredDb.forEach(q => {
         if (q.tags && q.tags.length > 0) {
             q.tags.forEach(t => {
                 tagCounts[t] = (tagCounts[t] || 0) + 1;
@@ -536,12 +538,15 @@ function renderTagSelect() {
         }
     });
 
-    let keys = Object.keys(tagCounts);
-    if(keys.length === 0) {
-        select.innerHTML = `<option value="">登録されたタグがありません</option>`;
-        return;
-    }
-    select.innerHTML = keys.map(t => `<option value="${t}">#${t} (${tagCounts[t]}問)</option>`).join("");
+    // 전체 풀 문항 수 계산
+    let totalQuestions = filteredDb.length;
+    let html = `<option value="all">🌐 全体プール (${totalQuestions}問)</option>`;
+
+    Object.keys(tagCounts).forEach(t => {
+        html += `<option value="${t}">#${t} (${tagCounts[t]}問)</option>`;
+    });
+
+    select.innerHTML = html;
 }
 
 /* ================= 試験生成 & シャッフル ================= */
@@ -562,11 +567,27 @@ function resetGradeButtons() {
     document.getElementById("examCtrlArea").classList.remove("hidden");
 }
 
+/* 💡 개정된 랜덤 시험 생성 로직 (전체 vs 태그 대응) */
 function makeRandomTest() {
     let n = parseInt(document.getElementById("count").value || "1");
-    const filteredDb = db.filter(q => q);
-    currentTest = shuffle(filteredDb).slice(0, n);
-    renderExam(currentTest, `🎯 ランダム試験 (${n}問)`);
+    const selectedTag = document.getElementById("tagSelect").value;
+    
+    let pool = db.filter(q => q);
+
+    // 특정 태그가 지정된 경우 필터링을 거침
+    if (selectedTag !== "all") {
+        pool = pool.filter(q => q.tags && q.tags.includes(selectedTag));
+    }
+
+    if (pool.length === 0) {
+        alert("該当する問題がありません。");
+        return;
+    }
+
+    currentTest = shuffle(pool).slice(0, n);
+    
+    let title = selectedTag === "all" ? `🎯 ランダム試験 [全体] (${currentTest.length}問)` : `🏷️ ランダム試験 [#${selectedTag}] (${currentTest.length}問)`;
+    renderExam(currentTest, title);
     resetGradeButtons();
 }
 
@@ -576,15 +597,6 @@ function makeCaseTest() {
     let selected = selectEl.value;
     currentTest = db.filter(q => q && (q.caseName || "未分類") === selected);
     renderExam(currentTest, `📘 判例別試験: ${selected}`);
-    resetGradeButtons();
-}
-
-function makeTagTest() {
-    const selectEl = document.getElementById("tagSelect");
-    if(!selectEl.value) return;
-    let selected = selectEl.value;
-    currentTest = db.filter(q => q && q.tags && q.tags.includes(selected));
-    renderExam(currentTest, `🏷️ タグ別試験: #${selected}`);
     resetGradeButtons();
 }
 
@@ -613,7 +625,7 @@ function renderExam(testData, title) {
         </div>`;
     });
 
-    html += `<div class="examFooter">採点ボタンを押すまで結果は表示されません</div></div>`;
+    html += `</div>`; // 💡 하단 안내문 제거 완료
     document.getElementById("examOut").innerHTML = html;
 
     setTimeout(() => {
@@ -718,10 +730,8 @@ document.getElementById("btnToggleDB").addEventListener("click", toggleDB);
 document.getElementById("btnAddQ").addEventListener("click", addQ);
 document.getElementById("modeRandom").addEventListener("click", () => setExamMode("random"));
 document.getElementById("modeCase").addEventListener("click", () => setExamMode("case"));
-document.getElementById("modeTag").addEventListener("click", () => setExamMode("tag"));
 document.getElementById("btnStartRandom").addEventListener("click", makeRandomTest);
 document.getElementById("btnStartCase").addEventListener("click", makeCaseTest);
-document.getElementById("btnStartTag").addEventListener("click", makeTagTest);
 document.getElementById("btnGrade").addEventListener("click", grade);
 document.getElementById("btnRetryWrong").addEventListener("click", retryWrongTests);
 
