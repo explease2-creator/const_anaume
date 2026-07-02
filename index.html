@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v12.3 (Bottom Bar Rolled Back)</title>
+<title>Slot Exam System v13.0 (Tagging & Editing)</title>
 
 <style>
 body {
@@ -11,7 +11,7 @@ body {
     background: #f4f6f8;
     margin: 0;
     padding: 15px;
-    padding-bottom: 90px; /* 하단 고정바가 지문을 가리지 않도록 바닥 여백 확보 */
+    padding-bottom: 90px; 
     -webkit-text-size-adjust: 100%;
 }
 
@@ -61,7 +61,7 @@ textarea, input, select {
     border-radius: 8px;
     border: 1px solid #ccc;
     box-sizing: border-box;
-    font-size: 16px; /* iOS 자동 줌 방지 */
+    font-size: 16px; 
 }
 
 button {
@@ -84,6 +84,19 @@ button {
     margin-top: 12px;
     font-size: 15px;
     line-height: 1.6;
+    position: relative;
+}
+
+.tag-badge {
+    display: inline-block;
+    background: #e1ecf8;
+    color: #2d6cdf;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    margin-right: 5px;
+    margin-top: 5px;
+    font-weight: bold;
 }
 
 /* 空欄ボックス */
@@ -102,10 +115,12 @@ button {
     align-items: center;
     gap: 10px;
     margin-top: 8px;
+    flex-wrap: wrap;
 }
 
 .answerBox {
     flex: 1;
+    min-width: 150px;
     padding: 10px;
     border-radius: 6px;
     border: 1px solid #ccc;
@@ -123,7 +138,6 @@ button {
 .no { color: red; }
 
 .hidden { display: none; }
-
 small { color: gray; font-size: 12px; }
 
 /* DBグループ */
@@ -144,45 +158,21 @@ small { color: gray; font-size: 12px; }
 /* 誤答ヒント */
 .wrongHint {
     margin-top: 6px;
-    margin-left: 10px;
     padding: 8px;
     font-size: 13px;
     color: #d33;
     border-left: 3px solid red;
     background: #fff3f3;
     border-radius: 4px;
-    width: 100%;
+    width: 100%; 
+    box-sizing: border-box;
 }
 
 #examOut {
     padding-bottom: 60px;
 }
 
-/* 試験セッション */
-.examSession {
-    background: white;
-    border-radius: 12px;
-    padding: 15px;
-    margin-top: 10px;
-}
-
-.examHeader {
-    font-weight: bold;
-    font-size: 16px;
-    margin-bottom: 10px;
-    color: #2d6cdf;
-}
-
-.examFooter {
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px solid #eee;
-    font-size: 13px;
-    color: gray;
-    text-align: center;
-}
-
-/* 🔄 롤백: 하단 고정 버튼 바 스타일 */
+/* 下部固定ボタンバー */
 .gradeBar {
     position: fixed;
     bottom: 0;
@@ -191,7 +181,7 @@ small { color: gray; font-size: 12px; }
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(5px);
     padding: 12px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom)); /* 아이폰/패드 하단 홈바 대응 */
+    padding-bottom: calc(12px + env(safe-area-inset-bottom)); 
     box-shadow: 0 -3px 15px rgba(0,0,0,0.1);
     z-index: 999;
     display: flex;
@@ -210,12 +200,43 @@ small { color: gray; font-size: 12px; }
 .gradeBar button.half {
     width: 47%;
 }
+
+/* 📱 修正用 モ달 팝업 스타일 */
+.modal {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.modal-content {
+    background: white;
+    width: 90%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+.modal-actions button {
+    flex: 1;
+}
 </style>
 </head>
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v12.3</div>
+<div class="top">📦 SLOT EXAM SYSTEM v13.0</div>
 
 <div class="tab">
 <button id="btnDB" class="active">📚 データベース</button>
@@ -226,6 +247,7 @@ small { color: gray; font-size: 12px; }
 <h3>📥 問題登録</h3>
 <input id="caseName" placeholder="判例名・事件名">
 <input id="note" placeholder="解説・注意点など">
+<input id="tags" placeholder="タグ (カン마(,)で複数入力可. 例: 인신의자유, 집회의자유)">
 <textarea id="qText" placeholder="問題文 ( 空欄にしたい部分を {正解} のように囲んで入力 )"></textarea>
 <button id="btnAddQ">追加する</button>
 <hr>
@@ -238,6 +260,7 @@ small { color: gray; font-size: 12px; }
 <div class="tab">
 <button id="modeRandom" class="active">ランダム</button>
 <button id="modeCase">判例別</button>
+<button id="modeTag">タグ別</button>
 </div>
 
 <div id="randomMode">
@@ -250,12 +273,31 @@ small { color: gray; font-size: 12px; }
     <button id="btnStartCase">試験開始</button>
 </div>
 
+<div id="tagMode" class="hidden">
+    <select id="tagSelect"></select>
+    <button id="btnStartTag">試験開始</button>
+</div>
+
 <div id="examOut"></div>
 </div>
 
 <div id="examCtrlArea" class="gradeBar hidden">
     <button id="btnGrade" style="background: #27ae60;">🎯 答え合わせ（採点）</button>
     <button id="btnRetryWrong" class="hidden" style="background: #e67e22; margin-left: 10px;">🔁 誤答のみ再出題</button>
+</div>
+
+<div id="editModal" class="modal hidden">
+    <div class="modal-content">
+        <h3>✏️ 問題の修正</h3>
+        <input id="editCaseName" placeholder="判例名・事件名">
+        <input id="editNote" placeholder="解説・注意点など">
+        <input id="editTags" placeholder="タグ (カンマで区切る)">
+        <textarea id="editQText" rows="6" placeholder="問題文"></textarea>
+        <div class="modal-actions">
+            <button id="btnCancelEdit" style="background: #95a5a6;">キャンセル</button>
+            <button id="btnSaveEdit" style="background: #27ae60;">保存する</button>
+        </div>
+    </div>
 </div>
 
 <script type="module">
@@ -278,6 +320,7 @@ const docRef = doc(dbInstance, "exams", "slot_db_doc");
 let db = []; 
 let currentTest = [];
 let examMode = "random";
+let editingIndex = null; // 현재 수정 중인 문제의 인덱스 저장
 
 onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
@@ -287,9 +330,7 @@ onSnapshot(docRef, (docSnap) => {
         db = [];
     }
     renderDB();
-    if (examMode === "case") {
-        renderCaseSelect();
-    }
+    refreshDropdowns();
 });
 
 async function saveToFirestore(newData) {
@@ -298,6 +339,11 @@ async function saveToFirestore(newData) {
     } catch (error) {
         console.error("Error saving data:", error);
     }
+}
+
+function refreshDropdowns() {
+    if (examMode === "case") renderCaseSelect();
+    if (examMode === "tag") renderTagSelect();
 }
 
 /* ================= タブ切り替え ================= */
@@ -312,37 +358,46 @@ function showTab(tab) {
         examArea.classList.add("hidden");
         btnDB.classList.add("active");
         btnExam.classList.remove("active");
-        document.getElementById("examCtrlArea").classList.add("hidden"); // DB탭에선 하단바 숨김
+        document.getElementById("examCtrlArea").classList.add("hidden"); 
         renderDB();
     } else {
         examArea.classList.remove("hidden");
         dbArea.classList.add("hidden");
         btnExam.classList.add("active");
         btnDB.classList.remove("active");
+        refreshDropdowns();
         if (currentTest.length > 0) {
             document.getElementById("examCtrlArea").classList.remove("hidden");
         }
     }
 }
 
-/* ================= データベース管理 ================= */
+/* ================= データベース管理 (登録・削除・修正) ================= */
 function toggleDB() {
     document.getElementById("dbView").classList.toggle("hidden");
+}
+
+function parseTags(tagStr) {
+    if (!tagStr) return [];
+    return tagStr.split(",").map(t => t.trim()).filter(t => t.length > 0);
 }
 
 function addQ() {
     const caseName = document.getElementById("caseName").value;
     const note = document.getElementById("note").value;
+    const tagStr = document.getElementById("tags").value;
     const question = document.getElementById("qText").value;
 
     if (!question.trim()) return;
 
     let answers = [...question.matchAll(/\{(.*?)\}/g)].map(m => m[1]);
+    let tags = parseTags(tagStr);
 
     db.push({
         id: db.length + 1,
         caseName,
         note,
+        tags,
         question,
         answers
     });
@@ -351,13 +406,49 @@ function addQ() {
 
     document.getElementById("caseName").value = "";
     document.getElementById("note").value = "";
+    document.getElementById("tags").value = "";
     document.getElementById("qText").value = "";
 }
 
 function deleteQ(index) {
+    if(!confirm("本当に削除しますか？")) return;
     db.splice(index, 1);
     db = db.map((q, i) => ({ ...q, id: i + 1 }));
     saveToFirestore(db);
+}
+
+/* 📱 수정 모달 열기 */
+function openEditModal(index) {
+    editingIndex = index;
+    const q = db[index];
+    document.getElementById("editCaseName").value = q.caseName || "";
+    document.getElementById("editNote").value = q.note || "";
+    document.getElementById("editTags").value = q.tags ? q.tags.join(", ") : "";
+    document.getElementById("editQText").value = q.question || "";
+    document.getElementById("editModal").classList.remove("hidden");
+}
+
+function closeEditModal() {
+    document.getElementById("editModal").classList.add("hidden");
+    editingIndex = null;
+}
+
+function saveEdit() {
+    if (editingIndex === null) return;
+    
+    const question = document.getElementById("editQText").value;
+    if (!question.trim()) return;
+
+    let answers = [...question.matchAll(/\{(.*?)\}/g)].map(m => m[1]);
+    
+    db[editingIndex].caseName = document.getElementById("editCaseName").value;
+    db[editingIndex].note = document.getElementById("editNote").value;
+    db[editingIndex].tags = parseTags(document.getElementById("editTags").value);
+    db[editingIndex].question = question;
+    db[editingIndex].answers = answers;
+
+    saveToFirestore(db);
+    closeEditModal();
 }
 
 function renderDB() {
@@ -374,11 +465,16 @@ function renderDB() {
     Object.keys(grouped).forEach(group => {
         html += `<div class="group"><div class="group-title">${group}</div>`;
         grouped[group].forEach(q => {
+            let tagHtml = q.tags ? q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("") : "";
             html += `
             <div class="question">
-                <button class="btn-delete" data-idx="${q._idx}" style="float:right; background:red; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer;">削除</button>
+                <div style="float:right; display:flex; gap:5px;">
+                    <button class="btn-edit-q" data-idx="${q._idx}" style="background:#f39c12; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">修正</button>
+                    <button class="btn-delete" data-idx="${q._idx}" style="background:red; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">削除</button>
+                </div>
                 <small>${q.note || ""}</small><br>
-                ${q.question}
+                ${q.question}<br>
+                ${tagHtml}
             </div>`;
         });
         html += `</div>`;
@@ -386,40 +482,67 @@ function renderDB() {
 
     document.getElementById("dbView").innerHTML = html;
 
+    // 이벤트 리스너 바인딩
     document.querySelectorAll(".btn-delete").forEach(btn => {
-        btn.addEventListener("click", (e) => {
-            const idx = parseInt(e.target.getAttribute("data-idx"));
-            deleteQ(idx);
-        });
+        btn.addEventListener("click", (e) => deleteQ(parseInt(e.target.getAttribute("data-idx"))));
+    });
+    document.querySelectorAll(".btn-edit-q").forEach(btn => {
+        btn.addEventListener("click", (e) => openEditModal(parseInt(e.target.getAttribute("data-idx"))));
     });
 }
 
 /* ================= モード設定 ================= */
 function setExamMode(mode) {
     examMode = mode;
-    const randomMode = document.getElementById("randomMode");
-    const caseMode = document.getElementById("caseMode");
-    const btnRandom = document.getElementById("modeRandom");
-    const btnCase = document.getElementById("modeCase");
+    const modes = {
+        random: document.getElementById("randomMode"),
+        case: document.getElementById("caseMode"),
+        tag: document.getElementById("tagMode")
+    };
+    const buttons = {
+        random: document.getElementById("modeRandom"),
+        case: document.getElementById("modeCase"),
+        tag: document.getElementById("modeTag")
+    };
 
-    if (mode === "random") {
-        randomMode.classList.remove("hidden");
-        caseMode.classList.add("hidden");
-        btnRandom.classList.add("active");
-        btnCase.classList.remove("active");
-    } else {
-        randomMode.classList.add("hidden");
-        caseMode.classList.remove("hidden");
-        btnCase.classList.add("active");
-        btnRandom.classList.remove("active");
-        renderCaseSelect();
-    }
+    Object.keys(modes).forEach(k => {
+        if (k === mode) {
+            modes[k].classList.remove("hidden");
+            buttons[k].classList.add("active");
+        } else {
+            modes[k].classList.add("hidden");
+            buttons[k].classList.remove("active");
+        }
+    });
+
+    refreshDropdowns();
 }
 
 function renderCaseSelect() {
     const select = document.getElementById("caseSelect");
     let cases = [...new Set(db.filter(q => q).map(q => q.caseName || "未分類"))];
     select.innerHTML = cases.map(c => `<option value="${c}">${c}</option>`).join("");
+}
+
+/* 💡 태그 목록 생성 및 문항 수 추출 (#태그명 (X問)) */
+function renderTagSelect() {
+    const select = document.getElementById("tagSelect");
+    let tagCounts = {};
+    
+    db.filter(q => q).forEach(q => {
+        if (q.tags && q.tags.length > 0) {
+            q.tags.forEach(t => {
+                tagCounts[t] = (tagCounts[t] || 0) + 1;
+            });
+        }
+    });
+
+    let keys = Object.keys(tagCounts);
+    if(keys.length === 0) {
+        select.innerHTML = `<option value="">登録されたタグがありません</option>`;
+        return;
+    }
+    select.innerHTML = keys.map(t => `<option value="${t}">#${t} (${tagCounts[t]}問)</option>`).join("");
 }
 
 /* ================= 試験生成 & シャッフル ================= */
@@ -435,7 +558,7 @@ function shuffle(arr) {
 function resetGradeButtons() {
     document.getElementById("btnRetryWrong").classList.add("hidden");
     const btnGrade = document.getElementById("btnGrade");
-    btnGrade.className = ""; // half 클래스 제거
+    btnGrade.className = ""; 
     btnGrade.style.width = "90%";
     document.getElementById("examCtrlArea").classList.remove("hidden");
 }
@@ -450,13 +573,20 @@ function makeRandomTest() {
 
 function makeCaseTest() {
     const selectEl = document.getElementById("caseSelect");
-    if(!selectEl.value) {
-        alert("選択可能な判例がありません。");
-        return;
-    }
+    if(!selectEl.value) return;
     let selected = selectEl.value;
     currentTest = db.filter(q => q && (q.caseName || "未分類") === selected);
     renderExam(currentTest, `📘 判例別試験: ${selected}`);
+    resetGradeButtons();
+}
+
+/* 💡 태그별 시험 생성 */
+function makeTagTest() {
+    const selectEl = document.getElementById("tagSelect");
+    if(!selectEl.value) return;
+    let selected = selectEl.value;
+    currentTest = db.filter(q => q && q.tags && q.tags.includes(selected));
+    renderExam(currentTest, `🏷️ タグ別試験: #${selected}`);
     resetGradeButtons();
 }
 
@@ -488,7 +618,6 @@ function renderExam(testData, title) {
     html += `<div class="examFooter">採点ボタンを押すまで結果は表示されません</div></div>`;
     document.getElementById("examOut").innerHTML = html;
 
-    // 포커스 자동 매칭 및 엔터 바인딩
     setTimeout(() => {
         const firstInput = document.querySelector(".answerBox");
         if (firstInput) firstInput.focus();
@@ -503,11 +632,8 @@ function bindInputEvents() {
             if (e.key === "Enter") {
                 e.preventDefault();
                 const nextInput = inputs[index + 1];
-                if (nextInput) {
-                    nextInput.focus();
-                } else {
-                    input.blur();
-                }
+                if (nextInput) nextInput.focus();
+                else input.blur();
             }
         });
     });
@@ -521,7 +647,8 @@ function grade() {
 
     currentTest.forEach((q, i) => {
         for (let j = 0; j < q.answers.length; j++) {
-            let user = (document.getElementById(`ans_${i}_${j}`).value || "").trim();
+            const inputEl = document.getElementById(`ans_${i}_${j}`);
+            let user = (inputEl.value || "").trim();
             let correct = q.answers[j].trim();
             let box = document.getElementById(`res_${i}_${j}`);
             let row = box.parentElement;
@@ -533,6 +660,7 @@ function grade() {
                 box.innerHTML = "X";
                 box.className = "result no";
                 hasWrong = true;
+                inputEl.value = user; 
 
                 let hintId = `hint_${i}_${j}`;
                 if (!document.getElementById(hintId)) {
@@ -592,10 +720,16 @@ document.getElementById("btnToggleDB").addEventListener("click", toggleDB);
 document.getElementById("btnAddQ").addEventListener("click", addQ);
 document.getElementById("modeRandom").addEventListener("click", () => setExamMode("random"));
 document.getElementById("modeCase").addEventListener("click", () => setExamMode("case"));
+document.getElementById("modeTag").addEventListener("click", () => setExamMode("tag"));
 document.getElementById("btnStartRandom").addEventListener("click", makeRandomTest);
 document.getElementById("btnStartCase").addEventListener("click", makeCaseTest);
+document.getElementById("btnStartTag").addEventListener("click", makeTagTest);
 document.getElementById("btnGrade").addEventListener("click", grade);
 document.getElementById("btnRetryWrong").addEventListener("click", retryWrongTests);
+
+/* 모달 전용 리스너 */
+document.getElementById("btnCancelEdit").addEventListener("click", closeEditModal);
+document.getElementById("btnSaveEdit").addEventListener("click", saveEdit);
 
 </script>
 
