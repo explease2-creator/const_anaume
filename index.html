@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v13.0 (Tagging & Editing)</title>
+<title>Slot Exam System v13.1 (Modal Fixed)</title>
 
 <style>
 body {
@@ -21,7 +21,7 @@ body {
     margin-bottom: 10px;
 }
 
-/* カード */
+/* 카드 */
 .card {
     background: white;
     padding: 15px;
@@ -137,7 +137,8 @@ button {
 .ok { color: green; }
 .no { color: red; }
 
-.hidden { display: none; }
+/* 💡 인라인 스타일보다 확실하게 숨김을 강제하기 위한 !important 주입 */
+.hidden { display: none !important; }
 small { color: gray; font-size: 12px; }
 
 /* DBグループ */
@@ -201,7 +202,7 @@ small { color: gray; font-size: 12px; }
     width: 47%;
 }
 
-/* 📱 修正用 モ달 팝업 스타일 */
+/* 📱 修正用 モダル */
 .modal {
     position: fixed;
     top: 0; left: 0; width: 100%; height: 100%;
@@ -236,7 +237,7 @@ small { color: gray; font-size: 12px; }
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v13.0</div>
+<div class="top">📦 SLOT EXAM SYSTEM v13.1</div>
 
 <div class="tab">
 <button id="btnDB" class="active">📚 データベース</button>
@@ -247,7 +248,7 @@ small { color: gray; font-size: 12px; }
 <h3>📥 問題登録</h3>
 <input id="caseName" placeholder="判例名・事件名">
 <input id="note" placeholder="解説・注意点など">
-<input id="tags" placeholder="タグ (カン마(,)で複数入力可. 例: 인신의자유, 집회의자유)">
+<input id="tags" placeholder="タグ (カンマ(,)で複数入力可. 例: 인신의자유, 집회의자유)">
 <textarea id="qText" placeholder="問題文 ( 空欄にしたい部分を {正解} のように囲んで入力 )"></textarea>
 <button id="btnAddQ">追加する</button>
 <hr>
@@ -286,7 +287,7 @@ small { color: gray; font-size: 12px; }
     <button id="btnRetryWrong" class="hidden" style="background: #e67e22; margin-left: 10px;">🔁 誤答のみ再出題</button>
 </div>
 
-<div id="editModal" class="modal hidden">
+<div id="editModal" class="modal" style="display: none;">
     <div class="modal-content">
         <h3>✏️ 問題の修正</h3>
         <input id="editCaseName" placeholder="判例名・事件名">
@@ -320,7 +321,7 @@ const docRef = doc(dbInstance, "exams", "slot_db_doc");
 let db = []; 
 let currentTest = [];
 let examMode = "random";
-let editingIndex = null; // 현재 수정 중인 문제의 인덱스 저장
+let editingIndex = null; 
 
 onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
@@ -372,7 +373,7 @@ function showTab(tab) {
     }
 }
 
-/* ================= データベース管理 (登録・削除・修正) ================= */
+/* ================= データベース管理 ================= */
 function toggleDB() {
     document.getElementById("dbView").classList.toggle("hidden");
 }
@@ -417,7 +418,7 @@ function deleteQ(index) {
     saveToFirestore(db);
 }
 
-/* 📱 수정 모달 열기 */
+/* 📱 🔄 수정 모달 제어 방식을 인라인 스타일 토글로 변경하여 확실하게 처리 */
 function openEditModal(index) {
     editingIndex = index;
     const q = db[index];
@@ -425,11 +426,11 @@ function openEditModal(index) {
     document.getElementById("editNote").value = q.note || "";
     document.getElementById("editTags").value = q.tags ? q.tags.join(", ") : "";
     document.getElementById("editQText").value = q.question || "";
-    document.getElementById("editModal").classList.remove("hidden");
+    document.getElementById("editModal").style.display = "flex"; // flex로 화면 중앙 노출
 }
 
 function closeEditModal() {
-    document.getElementById("editModal").classList.add("hidden");
+    document.getElementById("editModal").style.display = "none"; // 완벽 은폐
     editingIndex = null;
 }
 
@@ -482,7 +483,6 @@ function renderDB() {
 
     document.getElementById("dbView").innerHTML = html;
 
-    // 이벤트 리스너 바인딩
     document.querySelectorAll(".btn-delete").forEach(btn => {
         btn.addEventListener("click", (e) => deleteQ(parseInt(e.target.getAttribute("data-idx"))));
     });
@@ -524,7 +524,6 @@ function renderCaseSelect() {
     select.innerHTML = cases.map(c => `<option value="${c}">${c}</option>`).join("");
 }
 
-/* 💡 태그 목록 생성 및 문항 수 추출 (#태그명 (X問)) */
 function renderTagSelect() {
     const select = document.getElementById("tagSelect");
     let tagCounts = {};
@@ -580,7 +579,6 @@ function makeCaseTest() {
     resetGradeButtons();
 }
 
-/* 💡 태그별 시험 생성 */
 function makeTagTest() {
     const selectEl = document.getElementById("tagSelect");
     if(!selectEl.value) return;
@@ -727,7 +725,6 @@ document.getElementById("btnStartTag").addEventListener("click", makeTagTest);
 document.getElementById("btnGrade").addEventListener("click", grade);
 document.getElementById("btnRetryWrong").addEventListener("click", retryWrongTests);
 
-/* 모달 전용 리스너 */
 document.getElementById("btnCancelEdit").addEventListener("click", closeEditModal);
 document.getElementById("btnSaveEdit").addEventListener("click", saveEdit);
 
