@@ -491,6 +491,7 @@ function saveEdit() {
 function renderDB() {
     let grouped = {};
 
+    // 1. 判例名ごとにグループ化
     db.forEach((q, idx) => {
         if (!q) return; 
         let key = q.caseName || "未分類";
@@ -498,8 +499,16 @@ function renderDB() {
         grouped[key].push({ ...q, _idx: idx });
     });
 
+    // 2. 判例名（キー）を五十音順・アルファベット順にソート (未分類は最後に配置)
+    let sortedKeys = Object.keys(grouped).sort((a, b) => {
+        if (a === "未分類") return 1;
+        if (b === "未分類") return -1;
+        return a.localeCompare(b, 'ja');
+    });
+
+    // 3. ソートされた順序でHTMLを生成
     let html = "";
-    Object.keys(grouped).forEach(group => {
+    sortedKeys.forEach(group => {
         html += `<div class="group"><div class="group-title">${group}</div>`;
         grouped[group].forEach(q => {
             let tagHtml = q.tags ? q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("") : "";
@@ -560,6 +569,14 @@ function setExamMode(mode) {
 function renderCaseSelect() {
     const select = document.getElementById("caseSelect");
     let cases = [...new Set(db.filter(q => q).map(q => q.caseName || "未分類"))];
+    
+    // セレクトボックスの選択肢も五十音順にソート
+    cases.sort((a, b) => {
+        if (a === "未分類") return 1;
+        if (b === "未分類") return -1;
+        return a.localeCompare(b, 'ja');
+    });
+
     select.innerHTML = cases.map(c => `<option value="${c}">${c}</option>`).join("");
 }
 
@@ -579,7 +596,7 @@ function renderTagSelect() {
     let totalQuestions = filteredDb.length;
     let html = `<option value="all">🌐 全体プール (${totalQuestions}問)</option>`;
 
-    Object.keys(tagCounts).forEach(t => {
+    Object.keys(tagCounts).sort((a,b) => a.localeCompare(b, 'ja')).forEach(t => {
         html += `<option value="${t}">#${t} (${tagCounts[t]}問)</option>`;
     });
 
@@ -644,7 +661,7 @@ function makeCaseTest() {
     resetGradeButtons();
 }
 
-/* 💡 試験画面レンダリング (v15.0 原本通り) */
+/* 💡 試験画面レンダリング */
 function renderExam(testData, title) {
     let html = "";
     html += `<div class="examSession"><div class="examHeader">${title}</div>`;
