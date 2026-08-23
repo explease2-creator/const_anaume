@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v15.0</title>
+<title>Slot Exam System v16.0</title>
 
 <style>
 body {
@@ -21,7 +21,7 @@ body {
     margin-bottom: 10px;
 }
 
-/* カード */
+/* 카드 */
 .card {
     background: white;
     padding: 15px;
@@ -91,7 +91,7 @@ button {
     background: #fafafa;
     margin-top: 12px;
     font-size: 15px;
-    line-height: 1.8;
+    line-height: 2.2; /* 인라인 입력창과 텍스트 겹침 방지 */
     position: relative;
 }
 
@@ -107,7 +107,53 @@ button {
     font-weight: bold;
 }
 
-/* 空欄記号 (v15.0 原本デザイン) */
+/* 인라인 빈칸 입력창 */
+.inline-blank-container {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+    margin: 0 3px;
+}
+
+.inline-input {
+    display: inline-block;
+    width: auto;
+    min-width: 80px;
+    padding: 4px 8px;
+    margin: 0;
+    font-size: 15px;
+    font-weight: bold;
+    border: 2px solid #2d6cdf;
+    border-radius: 6px;
+    background: #fff;
+    color: #333;
+    outline: none;
+    text-align: center;
+    box-sizing: content-box;
+}
+
+/* 채점 상태 스타일 */
+.inline-input.status-correct {
+    background-color: #e8f0fe;
+    border-color: #2d6cdf;
+    color: #2d6cdf;
+    font-weight: bold;
+}
+
+.inline-input.status-wrong {
+    background-color: #fce8e6;
+    border-color: #d93025;
+    color: #d93025;
+}
+
+.inline-wrong-hint {
+    font-size: 13px;
+    font-weight: bold;
+    color: #d93025;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
 .blankSymbol {
     display: inline-block;
     color: #2d6cdf;
@@ -116,44 +162,6 @@ button {
     padding: 0 4px;
     margin: 0 2px;
 }
-
-/* 正解時のハイライト表示 (v15.0 原本デザイン) */
-.correctHighlight {
-    display: inline-block;
-    color: #d32f2f;
-    font-weight: bold;
-    border-bottom: 2px solid #d32f2f;
-    padding: 0 4px;
-    margin: 0 2px;
-}
-
-/* 解答エリア */
-.answerRow {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 8px;
-    flex-wrap: wrap;
-}
-
-.answerBox {
-    flex: 1;
-    min-width: 150px;
-    padding: 10px;
-    border-radius: 6px;
-    border: 1px solid #ccc;
-    font-size: 15px;
-}
-
-.result {
-    width: 30px;
-    text-align: center;
-    font-weight: bold;
-    font-size: 18px;
-}
-
-.ok { color: green; }
-.no { color: red; }
 
 .hidden { display: none !important; }
 small { color: gray; font-size: 12px; }
@@ -171,19 +179,6 @@ small { color: gray; font-size: 12px; }
     font-size: 15px;
     color: #2d6cdf;
     margin-bottom: 5px;
-}
-
-/* 誤答ヒント */
-.wrongHint {
-    margin-top: 6px;
-    padding: 8px;
-    font-size: 13px;
-    color: #d33;
-    border-left: 3px solid red;
-    background: #fff3f3;
-    border-radius: 4px;
-    width: 100%; 
-    box-sizing: border-box;
 }
 
 #examOut {
@@ -254,7 +249,7 @@ small { color: gray; font-size: 12px; }
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v15.0</div>
+<div class="top">📦 SLOT EXAM SYSTEM v16.0</div>
 
 <!-- タブ切り替え -->
 <div class="tab">
@@ -347,7 +342,6 @@ let currentTest = [];
 let examMode = "tag";
 let editingIndex = null; 
 
-// 丸数字リスト (①〜⑳)
 const circNums = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩","⑪","⑫","⑬","⑭","⑮","⑯","⑰","⑱","⑲","⑯"];
 function getCircNum(index) {
     return circNums[index] || `(${index + 1})`;
@@ -491,7 +485,6 @@ function saveEdit() {
 function renderDB() {
     let grouped = {};
 
-    // 1. 判例名ごとにグループ化
     db.forEach((q, idx) => {
         if (!q) return; 
         let key = q.caseName || "未分類";
@@ -499,14 +492,12 @@ function renderDB() {
         grouped[key].push({ ...q, _idx: idx });
     });
 
-    // 2. 判例名（キー）を五十音順・アルファベット順にソート (未分類は最後に配置)
     let sortedKeys = Object.keys(grouped).sort((a, b) => {
         if (a === "未分類") return 1;
         if (b === "未分類") return -1;
         return a.localeCompare(b, 'ja');
     });
 
-    // 3. ソートされた順序でHTMLを生成
     let html = "";
     sortedKeys.forEach(group => {
         html += `<div class="group"><div class="group-title">${group}</div>`;
@@ -570,7 +561,6 @@ function renderCaseSelect() {
     const select = document.getElementById("caseSelect");
     let cases = [...new Set(db.filter(q => q).map(q => q.caseName || "未分類"))];
     
-    // セレクトボックスの選択肢も五十音順にソート
     cases.sort((a, b) => {
         if (a === "未分類") return 1;
         if (b === "未分類") return -1;
@@ -624,7 +614,8 @@ function resetGradeButtons() {
 function prepareTestData(rawList) {
     return rawList.map(q => ({
         ...q,
-        solvedStatus: new Array(q.answers.length).fill(false)
+        solvedStatus: new Array(q.answers.length).fill(false),
+        userAnswers: new Array(q.answers.length).fill("")
     }));
 }
 
@@ -661,7 +652,7 @@ function makeCaseTest() {
     resetGradeButtons();
 }
 
-/* 💡 試験画面レンダリング */
+/* 💡 試験画面レンダリング (인라인 입력창 방식) */
 function renderExam(testData, title) {
     let html = "";
     html += `<div class="examSession"><div class="examHeader">${title}</div>`;
@@ -674,28 +665,27 @@ function renderExam(testData, title) {
             let num = getCircNum(blankIndex);
             let isSolved = q.solvedStatus && q.solvedStatus[blankIndex];
             let ansText = q.answers[blankIndex];
+            let userAns = q.userAnswers ? q.userAnswers[blankIndex] : "";
+            let idx = blankIndex;
             blankIndex++;
 
+            // 정답 길이에 따라 입력창 너비 동적 계산
+            let inputWidth = Math.max(ansText.length * 16 + 20, 70);
+
             if (isSolved) {
-                return `<span class="correctHighlight">${num} ${ansText}</span>`;
+                return `<span class="inline-blank-container">
+                    <input class="inline-input status-correct" style="width:${inputWidth}px;" value="${ansText}" disabled readonly>
+                </span>`;
             } else {
-                return `<span class="blankSymbol">${num} ___</span>`;
+                let statusClass = userAns ? "status-wrong" : "";
+                let hintHtml = userAns ? `<span class="inline-wrong-hint">(${ansText})</span>` : "";
+                
+                return `<span class="inline-blank-container">
+                    <input class="inline-input ${statusClass}" id="ans_${i}_${idx}" style="width:${inputWidth}px;" placeholder="${num}" value="${userAns}" enterkeyhint="next">
+                    ${hintHtml}
+                </span>`;
             }
         });
-
-        let inputs = "";
-        for (let j = 0; j < q.answers.length; j++) {
-            let num = getCircNum(j);
-            if (q.solvedStatus && q.solvedStatus[j]) {
-                // 正解済みの解答欄は非表示
-            } else {
-                inputs += `
-                <div class="answerRow">
-                    <input class="answerBox" id="ans_${i}_${j}" placeholder="${num} の解答" enterkeyhint="next">
-                    <div class="result" id="res_${i}_${j}"></div>
-                </div>`;
-            }
-        }
 
         let tagHtml = q.tags && q.tags.length > 0 
             ? `<div style="margin-bottom: 5px;">${q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("")}</div>` 
@@ -708,7 +698,6 @@ function renderExam(testData, title) {
             ${tagHtml}
             ${noteHtml}
             ${masked}
-            <div style="margin-top: 10px;">${inputs}</div>
         </div>`;
     });
 
@@ -716,14 +705,14 @@ function renderExam(testData, title) {
     document.getElementById("examOut").innerHTML = html;
 
     setTimeout(() => {
-        const firstInput = document.querySelector(".answerBox");
+        const firstInput = document.querySelector(".inline-input:not([disabled])");
         if (firstInput) firstInput.focus();
         bindInputEvents();
     }, 100);
 }
 
 function bindInputEvents() {
-    const inputs = Array.from(document.querySelectorAll(".answerBox"));
+    const inputs = Array.from(document.querySelectorAll(".inline-input:not([disabled])"));
     inputs.forEach((input, index) => {
         input.addEventListener("keydown", (e) => {
             if (e.key === "Enter") {
@@ -751,26 +740,13 @@ function grade() {
 
             let user = (inputEl.value || "").trim();
             let correct = q.answers[j].trim();
-            let box = document.getElementById(`res_${i}_${j}`);
-            let row = box.parentElement;
+
+            q.userAnswers[j] = user;
 
             if (user === correct) {
                 q.solvedStatus[j] = true;
             } else {
-                box.innerHTML = "X";
-                box.className = "result no";
                 hasWrong = true;
-                inputEl.value = user; 
-
-                let num = getCircNum(j);
-                let hintId = `hint_${i}_${j}`;
-                if (!document.getElementById(hintId)) {
-                    let hint = document.createElement("div");
-                    hint.id = hintId;
-                    hint.className = "wrongHint";
-                    hint.innerHTML = `正解: ${correct}`;
-                    row.appendChild(hint);
-                }
             }
         }
     });
@@ -795,6 +771,8 @@ function retryWrongTests() {
     currentTest.forEach((q) => {
         let hasUnsolved = q.solvedStatus.some(status => status === false);
         if (hasUnsolved) {
+            // 틀린 항목의 이전 사용자 입력값 초기화
+            q.userAnswers = q.userAnswers.map((ans, idx) => q.solvedStatus[idx] ? ans : "");
             wrongQuestions.push(q);
         }
     });
