@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v15.0</title>
+<title>Slot Exam System v15.1</title>
 
 <style>
 body {
@@ -21,7 +21,7 @@ body {
     margin-bottom: 10px;
 }
 
-/* 카드 */
+/* カード */
 .card {
     background: white;
     padding: 15px;
@@ -107,23 +107,17 @@ button {
     font-weight: bold;
 }
 
-/* 空欄ボックス */
-.blankBox {
+/* 空欄記号 (丸数字のみ表示) */
+.blankSymbol {
     display: inline-block;
-    min-width: 50px;
-    padding: 0 4px;
-    border-bottom: 2px solid #333;
-    margin: 0 4px;
-    text-align: center;
-    font-weight: bold;
     color: #2d6cdf;
+    font-weight: bold;
+    margin: 0 2px;
 }
 
 /* 正解時のハイライト表示 */
 .correctHighlight {
     display: inline-block;
-    padding: 0 4px;
-    border-bottom: 2px solid #d32f2f;
     color: #d32f2f;
     font-weight: bold;
     margin: 0 2px;
@@ -256,7 +250,7 @@ small { color: gray; font-size: 12px; }
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v15.0</div>
+<div class="top">📦 SLOT EXAM SYSTEM v15.1</div>
 
 <!-- タブ切り替え -->
 <div class="tab">
@@ -269,8 +263,8 @@ small { color: gray; font-size: 12px; }
 <h3>📥 問題登録</h3>
 <input id="caseName" placeholder="判例名・事件名">
 <input id="note" placeholder="解説・注意点など">
-<input id="tags" placeholder="タグ (カンマ(,)で複数入力可. 例: 인신의자유, 집회의자유)">
-<textarea id="qText" rows="5" placeholder="問題文 ( 空欄: {正解} / 굵은글씨: **강조** )"></textarea>
+<input id="tags" placeholder="タグ (カンマ(,)で複数入力可. 例: 人身の自由, 集会の自由)">
+<textarea id="qText" rows="5" placeholder="問題文 ( 空欄: {正解} / 強調: **テキスト** )"></textarea>
 <button id="btnAddQ">追加する</button>
 <hr>
 <button id="btnToggleDB">📚 登録問題の一覧 表示/非表示</button>
@@ -350,7 +344,7 @@ let examMode = "tag";
 let editingIndex = null; 
 
 // 丸数字リスト (①〜⑳)
-const circNums = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩","⑪","⑫","⑬","⑭","⑮","⑯","⑰","⑱","⑲","Snapshot"];
+const circNums = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩","⑪","⑫","⑬","⑭","⑮","⑯","⑰","⑱","⑲","⑯"];
 function getCircNum(index) {
     return circNums[index] || `(${index + 1})`;
 }
@@ -507,11 +501,11 @@ function renderDB() {
             let tagHtml = q.tags ? q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("") : "";
             let noteHtml = q.note ? `<small>${formatText(q.note)}</small><br>` : "";
             
-            // DB 목록에서도 숫자 기호 표시
+            // DB 一覧でも下線を削除し、丸数字のみ綺麗に表示
             let idxCounter = 0;
             let formattedQ = formatText(q.question).replace(/\{.*?\}/g, () => {
                 let num = getCircNum(idxCounter++);
-                return `<span class="blankBox">${num} ___</span>`;
+                return `<span class="blankSymbol">${num}</span>`;
             });
 
             html += `
@@ -647,7 +641,7 @@ function makeCaseTest() {
     resetGradeButtons();
 }
 
-/* 💡 試験画面レンダリング (①, ② 번호 및 정답 빨간색 하이라이트 반영) */
+/* 💡 試験画面レンダリング (下線を除去し、丸数字のみすっきり表示) */
 function renderExam(testData, title) {
     let html = "";
     html += `<div class="examSession"><div class="examHeader">${title}</div>`;
@@ -655,32 +649,29 @@ function renderExam(testData, title) {
     testData.forEach((q, i) => {
         let formattedQ = formatText(q.question);
         
-        // 문제문 빈칸 변환
         let blankIndex = 0;
         let masked = formattedQ.replace(/\{.*?\}/g, () => {
             let num = getCircNum(blankIndex);
             let isSolved = q.solvedStatus && q.solvedStatus[blankIndex];
             let ansText = q.answers[blankIndex];
-            let currentIdx = blankIndex;
             blankIndex++;
 
             if (isSolved) {
                 return `<span class="correctHighlight">${num} ${ansText}</span>`;
             } else {
-                return `<span class="blankBox">${num} ___</span>`;
+                return `<span class="blankSymbol">${num}</span>`;
             }
         });
 
-        // 답안 입력창 생성 (정답 맞춘 부분은 입력창 숨김)
         let inputs = "";
         for (let j = 0; j < q.answers.length; j++) {
             let num = getCircNum(j);
             if (q.solvedStatus && q.solvedStatus[j]) {
-                // 이미 맞춘 답안은 입력 창을 띄우지 않음
+                // 正解済みの解答欄は非表示
             } else {
                 inputs += `
                 <div class="answerRow">
-                    <input class="answerBox" id="ans_${i}_${j}" placeholder="${num} 의 解答" enterkeyhint="next">
+                    <input class="answerBox" id="ans_${i}_${j}" placeholder="${num} の解答" enterkeyhint="next">
                     <div class="result" id="res_${i}_${j}"></div>
                 </div>`;
             }
@@ -760,7 +751,6 @@ function grade() {
         }
     });
 
-    // 화면 재채점 및 재출력
     renderExam(currentTest, document.querySelector(".examHeader").innerText);
 
     if (hasWrong) {
