@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v16.1</title>
+<title>Slot Exam System v16.2</title>
 
 <style>
 body {
@@ -91,8 +91,10 @@ button {
     background: #fafafa;
     margin-top: 12px;
     font-size: 15px;
-    line-height: 2.2;
+    line-height: 2.0;
     position: relative;
+    /* 연속 공백 및 스페이스가 사라지지 않고 그대로 유지되도록 설정 */
+    white-space: pre-wrap; 
 }
 
 .tag-badge {
@@ -105,6 +107,7 @@ button {
     margin-right: 5px;
     margin-top: 5px;
     font-weight: bold;
+    white-space: normal;
 }
 
 /* 인라인 빈칸 입력창 */
@@ -113,6 +116,7 @@ button {
     align-items: center;
     vertical-align: middle;
     margin: 0 3px;
+    white-space: normal;
 }
 
 .inline-input {
@@ -161,18 +165,18 @@ button {
     border-bottom: 2px solid #2d6cdf;
     padding: 0 4px;
     margin: 0 2px;
+    white-space: normal;
 }
 
-/* 문단 들여쓰기 클래스 (HTML 마크다운 파싱용) */
+/* 문단 들여쓰기 클래스 (여백 불필요 요소 제거) */
 .indent-block {
     display: block;
     padding-left: 1.5em;
-    margin-top: 4px;
-    margin-bottom: 4px;
+    margin: 2px 0;
 }
 
 .hidden { display: none !important; }
-small { color: gray; font-size: 12px; }
+small { color: gray; font-size: 12px; white-space: normal; }
 
 /* DBグループ */
 .group {
@@ -257,7 +261,7 @@ small { color: gray; font-size: 12px; }
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v16.1</div>
+<div class="top">📦 SLOT EXAM SYSTEM v16.2</div>
 
 <!-- タブ切り替え -->
 <div class="tab">
@@ -379,14 +383,40 @@ function refreshDropdowns() {
     renderTagSelect();
 }
 
-/* 텍스트 포맷터: **강조** 및 문단 들여쓰기(>) 처리 추가 */
+/* 텍스트 포맷터 개선: 줄바꿈과 들여쓰기 블록의 중복 여백 문제 해결 */
 function formatText(str) {
     if (!str) return "";
-    return str
-        .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
-        .replace(/^&gt;\s?(.*)$/gm, "<span class='indent-block'>$1</span>")
-        .replace(/^>\s?(.*)$/gm, "<span class='indent-block'>$1</span>")
-        .replace(/\n/g, "<br>");
+    
+    // 강하게 강조 처리
+    let formatted = str.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+    
+    // 줄 단위로 분할하여 > 들여쓰기 블록 처리
+    let lines = formatted.split("\n");
+    let resultLines = lines.map(line => {
+        if (line.trim().startsWith("&gt;")) {
+            let content = line.trim().replace(/^&gt;\s?/, "");
+            return `<div class="indent-block">${content}</div>`;
+        } else if (line.trim().startsWith(">")) {
+            let content = line.trim().replace(/^>\s?/, "");
+            return `<div class="indent-block">${content}</div>`;
+        }
+        return line;
+    });
+
+    // 일반 줄간의 연결에만 <br> 추가
+    let finalHtml = "";
+    for (let i = 0; i < resultLines.length; i++) {
+        finalHtml += resultLines[i];
+        if (i < resultLines.length - 1) {
+            // 들여쓰기 태그 전후로 불필요한 <br>가 중복 삽입되는 것 방지
+            let currIsIndent = resultLines[i].includes("class=\"indent-block\"");
+            let nextIsIndent = resultLines[i+1].includes("class=\"indent-block\"");
+            if (!currIsIndent && !nextIsIndent) {
+                finalHtml += "<br>";
+            }
+        }
+    }
+    return finalHtml;
 }
 
 /* ================= タブ切り替え ================= */
@@ -626,7 +656,7 @@ function prepareTestData(rawList) {
     return rawList.map(q => ({
         ...q,
         solvedStatus: new Array(q.answers.length).fill(false),
-        userAnswers: new Array(q.answers.length).fill(null) // null: 미제출, "": 공백 제출
+        userAnswers: new Array(q.answers.length).fill(null)
     }));
 }
 
@@ -687,7 +717,6 @@ function renderExam(testData, title) {
                     <input class="inline-input status-correct" style="width:${inputWidth}px;" value="${ansText}" disabled readonly>
                 </span>`;
             } else {
-                // null(미채점)이 아닐 때(즉, 제출 후 오답이거나 공백 제출인 경우) 오답 스타일 적용
                 let isGraded = userAns !== null;
                 let statusClass = isGraded ? "status-wrong" : "";
                 let hintHtml = isGraded ? `<span class="inline-wrong-hint">(${ansText})</span>` : "";
@@ -754,12 +783,12 @@ function grade() {
             let user = (inputEl.value || "").trim();
             let correct = q.answers[j].trim();
 
-            q.userAnswers[j] = user; // 공백인 경우 "" 저장
+            q.userAnswers[j] = user;
 
             if (user === correct && user !== "") {
                 q.solvedStatus[j] = true;
             } else {
-                hasWrong = true; // 틀렸거나 공백인 경우 오답 처리
+                hasWrong = true;
             }
         }
     });
@@ -784,7 +813,6 @@ function retryWrongTests() {
     currentTest.forEach((q) => {
         let hasUnsolved = q.solvedStatus.some(status => status === false);
         if (hasUnsolved) {
-            // 틀린 빈칸은 null(미채점) 상태로 리셋하여 다시 풀 수 있게 함
             q.userAnswers = q.userAnswers.map((ans, idx) => q.solvedStatus[idx] ? ans : null);
             wrongQuestions.push(q);
         }
