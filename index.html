@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v13.2</title>
+<title>Slot Exam System v14.0</title>
 
 <style>
 body {
@@ -21,7 +21,7 @@ body {
     margin-bottom: 10px;
 }
 
-/* カード */
+/* 카드 */
 .card {
     background: white;
     padding: 15px;
@@ -93,6 +93,7 @@ button {
     font-size: 15px;
     line-height: 1.6;
     position: relative;
+    white-space: pre-wrap; /* 줄바꿈 자연스럽게 반영 */
 }
 
 .tag-badge {
@@ -132,6 +133,18 @@ button {
     padding: 10px;
     border-radius: 6px;
     border: 1px solid #ccc;
+    font-size: 15px;
+}
+
+/* 이미 맞춘 정답 표시용 스타일 */
+.solvedBox {
+    flex: 1;
+    padding: 10px;
+    border-radius: 6px;
+    background: #eef9f1;
+    border: 1px solid #27ae60;
+    color: #d32f2f;
+    font-weight: bold;
     font-size: 15px;
 }
 
@@ -244,41 +257,47 @@ small { color: gray; font-size: 12px; }
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v13.2</div>
+<div class="top">📦 SLOT EXAM SYSTEM v14.0</div>
 
+<!-- タブ切り替え -->
 <div class="tab">
 <button id="btnDB" class="active">📚 データベース</button>
 <button id="btnExam">🎯 穴埋め試験</button>
 </div>
 
+<!-- ================= DB管理画面 ================= -->
 <div id="dbArea" class="card">
 <h3>📥 問題登録</h3>
 <input id="caseName" placeholder="判例名・事件名">
 <input id="note" placeholder="解説・注意点など">
-<input id="tags" placeholder="タグ (カンマ(,)で複数入力可)">
-<textarea id="qText" placeholder="問題文 ( 空欄にしたい部分を {正解} のように囲んで入力 )"></textarea>
+<input id="tags" placeholder="タグ (カンマ(,)で複数入力可. 例: 인신의자유, 집회의자유)">
+<textarea id="qText" rows="5" placeholder="問題文 ( 空欄: {正解} / 굵은글씨: **강조** )"></textarea>
 <button id="btnAddQ">追加する</button>
 <hr>
 <button id="btnToggleDB">📚 登録問題の一覧 表示/非表示</button>
 <div id="dbView" class="hidden"></div>
 </div>
 
+<!-- ================= 試験画面 ================= -->
 <div id="examArea" class="card hidden">
 <h3>🎯 試験作成</h3>
+<!-- 💡 요청에 따라 'タグ別', '判例別' 2가지 탭으로 구성 -->
 <div class="tab">
-<button id="modeRandom" class="active">ランダム</button>
+<button id="modeTag" class="active">タグ別</button>
 <button id="modeCase">判例別</button>
 </div>
 
-<div id="randomMode">
-    <span class="form-label">🎯 出題範囲 (タグ選択)</span>
+<!-- タグ別モード (전체 무작위 및 특정 태그 무작위 겸용) -->
+<div id="tagMode">
+    <span class="form-label">🏷️ タグを選択 (出題範囲)</span>
     <select id="tagSelect"></select>
     
     <span class="form-label">📝 出題問題数</span>
     <input id="count" type="number" pattern="[0-9]*" placeholder="出題問題数">
-    <button id="btnStartRandom">試験開始</button>
+    <button id="btnStartTag">試験開始</button>
 </div>
 
+<!-- 判例別モード -->
 <div id="caseMode" class="hidden">
     <span class="form-label">📘 判例を選択</span>
     <select id="caseSelect"></select>
@@ -288,11 +307,13 @@ small { color: gray; font-size: 12px; }
 <div id="examOut"></div>
 </div>
 
+<!-- 下部固定操作バー -->
 <div id="examCtrlArea" class="gradeBar hidden">
     <button id="btnGrade" style="background: #27ae60;">🎯 答え合わせ（採点）</button>
     <button id="btnRetryWrong" class="hidden" style="background: #e67e22; margin-left: 10px;">🔁 誤答のみ再出題</button>
 </div>
 
+<!-- 📱 修正モダル -->
 <div id="editModal" class="modal" style="display: none;">
     <div class="modal-content">
         <h3>✏️ 問題の修正</h3>
@@ -307,6 +328,7 @@ small { color: gray; font-size: 12px; }
     </div>
 </div>
 
+<!-- ================= JAVASCRIPT ================= -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
@@ -326,7 +348,7 @@ const docRef = doc(dbInstance, "exams", "slot_db_doc");
 
 let db = []; 
 let currentTest = [];
-let examMode = "random";
+let examMode = "tag";
 let editingIndex = null; 
 
 onSnapshot(docRef, (docSnap) => {
@@ -351,6 +373,14 @@ async function saveToFirestore(newData) {
 function refreshDropdowns() {
     renderCaseSelect();
     renderTagSelect();
+}
+
+/* 💡 **굵은글씨** 및 개행 텍스트 렌더링 변환 함수 */
+function formatText(str) {
+    if (!str) return "";
+    // **텍스트** -> <b>텍스트</b> 변환
+    let formatted = str.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+    return formatted;
 }
 
 /* ================= タブ切り替え ================= */
@@ -478,8 +508,8 @@ function renderDB() {
                     <button class="btn-edit-q" data-idx="${q._idx}" style="background:#f39c12; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">修正</button>
                     <button class="btn-delete" data-idx="${q._idx}" style="background:red; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">削除</button>
                 </div>
-                <small>${q.note || ""}</small><br>
-                ${q.question}<br>
+                <small>${formatText(q.note || "")}</small><br>
+                ${formatText(q.question)}<br>
                 ${tagHtml}
             </div>`;
         });
@@ -499,21 +529,21 @@ function renderDB() {
 /* ================= モード設定 ================= */
 function setExamMode(mode) {
     examMode = mode;
-    const randomMode = document.getElementById("randomMode");
+    const tagMode = document.getElementById("tagMode");
     const caseMode = document.getElementById("caseMode");
-    const btnRandom = document.getElementById("modeRandom");
+    const btnTag = document.getElementById("modeTag");
     const btnCase = document.getElementById("modeCase");
 
-    if (mode === "random") {
-        randomMode.classList.remove("hidden");
+    if (mode === "tag") {
+        tagMode.classList.remove("hidden");
         caseMode.classList.add("hidden");
-        btnRandom.classList.add("active");
+        btnTag.classList.add("active");
         btnCase.classList.remove("active");
     } else {
-        randomMode.classList.add("hidden");
+        tagMode.classList.add("hidden");
         caseMode.classList.remove("hidden");
         btnCase.classList.add("active");
-        btnRandom.classList.remove("active");
+        btnTag.classList.remove("active");
     }
     refreshDropdowns();
 }
@@ -524,7 +554,6 @@ function renderCaseSelect() {
     select.innerHTML = cases.map(c => `<option value="${c}">${c}</option>`).join("");
 }
 
-/* 랜덤 모드 내부에 위치할 태그 선택 드롭다운 생성 (전체 옵션 추가) */
 function renderTagSelect() {
     const select = document.getElementById("tagSelect");
     const filteredDb = db.filter(q => q);
@@ -538,7 +567,6 @@ function renderTagSelect() {
         }
     });
 
-    // 전체 풀 문항 수 계산
     let totalQuestions = filteredDb.length;
     let html = `<option value="all">🌐 全体プール (${totalQuestions}問)</option>`;
 
@@ -567,14 +595,19 @@ function resetGradeButtons() {
     document.getElementById("examCtrlArea").classList.remove("hidden");
 }
 
-/* 💡 개정된 랜덤 시험 생성 로직 (전체 vs 태그 대응) */
-function makeRandomTest() {
+function prepareTestData(rawList) {
+    return rawList.map(q => ({
+        ...q,
+        solvedStatus: new Array(q.answers.length).fill(false) // 각 빈칸별 정답 맞춤 여부 초기화
+    }));
+}
+
+function makeTagTest() {
     let n = parseInt(document.getElementById("count").value || "1");
     const selectedTag = document.getElementById("tagSelect").value;
     
     let pool = db.filter(q => q);
 
-    // 특정 태그가 지정된 경우 필터링을 거침
     if (selectedTag !== "all") {
         pool = pool.filter(q => q.tags && q.tags.includes(selectedTag));
     }
@@ -584,9 +617,10 @@ function makeRandomTest() {
         return;
     }
 
-    currentTest = shuffle(pool).slice(0, n);
+    let selectedQuestions = shuffle(pool).slice(0, n);
+    currentTest = prepareTestData(selectedQuestions);
     
-    let title = selectedTag === "all" ? `🎯 ランダム試験 [全体] (${currentTest.length}問)` : `🏷️ ランダム試験 [#${selectedTag}] (${currentTest.length}問)`;
+    let title = selectedTag === "all" ? `🎯 ランダム試験 [全体] (${currentTest.length}問)` : `🏷️ タグ別試験 [#${selectedTag}] (${currentTest.length}問)`;
     renderExam(currentTest, title);
     resetGradeButtons();
 }
@@ -595,37 +629,50 @@ function makeCaseTest() {
     const selectEl = document.getElementById("caseSelect");
     if(!selectEl.value) return;
     let selected = selectEl.value;
-    currentTest = db.filter(q => q && (q.caseName || "未分類") === selected);
+    let selectedQuestions = db.filter(q => q && (q.caseName || "未分類") === selected);
+    currentTest = prepareTestData(selectedQuestions);
     renderExam(currentTest, `📘 判例別試験: ${selected}`);
     resetGradeButtons();
 }
 
+/* 💡 시험 화면 렌더링 함수 (이미 맞춘 항목은 붉은 글씨 고정 처리) */
 function renderExam(testData, title) {
     let html = "";
     html += `<div class="examSession"><div class="examHeader">${title}</div>`;
 
     testData.forEach((q, i) => {
-        let masked = q.question.replace(/\{.*?\}/g, `<span class="blankBox"></span>`);
+        // 문제 지문 본문 서식 적용
+        let formattedQ = formatText(q.question);
+        let masked = formattedQ.replace(/\{.*?\}/g, `<span class="blankBox"></span>`);
         let inputs = "";
 
         for (let j = 0; j < q.answers.length; j++) {
-            inputs += `
-            <div class="answerRow">
-                <input class="answerBox" id="ans_${i}_${j}" placeholder="空欄 ${j+1} の解答" enterkeyhint="next">
-                <div class="result" id="res_${i}_${j}"></div>
-            </div>`;
+            // 💡 이미 맞춰서 solvedStatus가 true인 항목은 빨간 글씨 정답 박스로 채움
+            if (q.solvedStatus && q.solvedStatus[j]) {
+                inputs += `
+                <div class="answerRow">
+                    <div class="solvedBox">空欄 ${j+1}: ${q.answers[j]} (正解済)</div>
+                    <div class="result ok">O</div>
+                </div>`;
+            } else {
+                inputs += `
+                <div class="answerRow">
+                    <input class="answerBox" id="ans_${i}_${j}" placeholder="空欄 ${j+1} の解答" enterkeyhint="next">
+                    <div class="result" id="res_${i}_${j}"></div>
+                </div>`;
+            }
         }
 
         html += `
         <div class="question">
             <b>${i + 1}. ${q.caseName || ""}</b><br>
-            <small>${q.note || ""}</small><br>
+            <small>${formatText(q.note || "")}</small><br>
             ${masked}
             ${inputs}
         </div>`;
     });
 
-    html += `</div>`; // 💡 하단 안내문 제거 완료
+    html += `</div>`;
     document.getElementById("examOut").innerHTML = html;
 
     setTimeout(() => {
@@ -657,7 +704,12 @@ function grade() {
 
     currentTest.forEach((q, i) => {
         for (let j = 0; j < q.answers.length; j++) {
+            // 이미 이전에 맞춘 항목은 건너뜀
+            if (q.solvedStatus && q.solvedStatus[j]) continue;
+
             const inputEl = document.getElementById(`ans_${i}_${j}`);
+            if (!inputEl) continue;
+
             let user = (inputEl.value || "").trim();
             let correct = q.answers[j].trim();
             let box = document.getElementById(`res_${i}_${j}`);
@@ -666,6 +718,7 @@ function grade() {
             if (user === correct) {
                 box.innerHTML = "O";
                 box.className = "result ok";
+                q.solvedStatus[j] = true; // 맞춘 항목 등록
             } else {
                 box.innerHTML = "X";
                 box.className = "result no";
@@ -696,21 +749,14 @@ function grade() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* ================= 間違えた問題のみ再出題 ================= */
+/* ================= 💡 틀린 빈칸만 다시 풀기 ================= */
 function retryWrongTests() {
     let wrongQuestions = [];
 
-    currentTest.forEach((q, i) => {
-        let isCurrentQuestionWrong = false;
-        for (let j = 0; j < q.answers.length; j++) {
-            let user = (document.getElementById(`ans_${i}_${j}`).value || "").trim();
-            let correct = q.answers[j].trim();
-            if (user !== correct) {
-                isCurrentQuestionWrong = true;
-                break;
-            }
-        }
-        if (isCurrentQuestionWrong) {
+    currentTest.forEach((q) => {
+        // 빈칸 중 하나라도 아직 못 맞춘 항목이 남아있다면 재출시 대상에 포함
+        let hasUnsolved = q.solvedStatus.some(status => status === false);
+        if (hasUnsolved) {
             wrongQuestions.push(q);
         }
     });
@@ -728,9 +774,9 @@ document.getElementById("btnDB").addEventListener("click", () => showTab("db"));
 document.getElementById("btnExam").addEventListener("click", () => showTab("exam"));
 document.getElementById("btnToggleDB").addEventListener("click", toggleDB);
 document.getElementById("btnAddQ").addEventListener("click", addQ);
-document.getElementById("modeRandom").addEventListener("click", () => setExamMode("random"));
+document.getElementById("modeTag").addEventListener("click", () => setExamMode("tag"));
 document.getElementById("modeCase").addEventListener("click", () => setExamMode("case"));
-document.getElementById("btnStartRandom").addEventListener("click", makeRandomTest);
+document.getElementById("btnStartTag").addEventListener("click", makeTagTest);
 document.getElementById("btnStartCase").addEventListener("click", makeCaseTest);
 document.getElementById("btnGrade").addEventListener("click", grade);
 document.getElementById("btnRetryWrong").addEventListener("click", retryWrongTests);
