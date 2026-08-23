@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v16.0</title>
+<title>Slot Exam System v16.1</title>
 
 <style>
 body {
@@ -91,7 +91,7 @@ button {
     background: #fafafa;
     margin-top: 12px;
     font-size: 15px;
-    line-height: 2.2; /* 인라인 입력창과 텍스트 겹침 방지 */
+    line-height: 2.2;
     position: relative;
 }
 
@@ -161,6 +161,14 @@ button {
     border-bottom: 2px solid #2d6cdf;
     padding: 0 4px;
     margin: 0 2px;
+}
+
+/* 문단 들여쓰기 클래스 (HTML 마크다운 파싱용) */
+.indent-block {
+    display: block;
+    padding-left: 1.5em;
+    margin-top: 4px;
+    margin-bottom: 4px;
 }
 
 .hidden { display: none !important; }
@@ -249,7 +257,7 @@ small { color: gray; font-size: 12px; }
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v16.0</div>
+<div class="top">📦 SLOT EXAM SYSTEM v16.1</div>
 
 <!-- タブ切り替え -->
 <div class="tab">
@@ -263,7 +271,7 @@ small { color: gray; font-size: 12px; }
 <input id="caseName" placeholder="判例名・事件名">
 <input id="note" placeholder="解説・注意点など">
 <input id="tags" placeholder="タグ (カンマ(,)で複数入力可. 例: 人身の自由, 集会の自由)">
-<textarea id="qText" rows="5" placeholder="問題文 ( 空欄: {正解} / 強調: **テキスト** )"></textarea>
+<textarea id="qText" rows="5" placeholder="問題文 ( 空欄: {正解} / 強調: **テキスト** / 들여쓰기: > 텍스트 )"></textarea>
 <button id="btnAddQ">追加する</button>
 <hr>
 <button id="btnToggleDB">📚 登録問題の一覧 表示/非表示</button>
@@ -371,10 +379,13 @@ function refreshDropdowns() {
     renderTagSelect();
 }
 
+/* 텍스트 포맷터: **강조** 및 문단 들여쓰기(>) 처리 추가 */
 function formatText(str) {
     if (!str) return "";
     return str
         .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+        .replace(/^&gt;\s?(.*)$/gm, "<span class='indent-block'>$1</span>")
+        .replace(/^>\s?(.*)$/gm, "<span class='indent-block'>$1</span>")
         .replace(/\n/g, "<br>");
 }
 
@@ -615,7 +626,7 @@ function prepareTestData(rawList) {
     return rawList.map(q => ({
         ...q,
         solvedStatus: new Array(q.answers.length).fill(false),
-        userAnswers: new Array(q.answers.length).fill("")
+        userAnswers: new Array(q.answers.length).fill(null) // null: 미제출, "": 공백 제출
     }));
 }
 
@@ -652,7 +663,7 @@ function makeCaseTest() {
     resetGradeButtons();
 }
 
-/* 💡 試験画面レンダリング (인라인 입력창 방식) */
+/* 💡 試験画面レンダリング */
 function renderExam(testData, title) {
     let html = "";
     html += `<div class="examSession"><div class="examHeader">${title}</div>`;
@@ -665,11 +676,10 @@ function renderExam(testData, title) {
             let num = getCircNum(blankIndex);
             let isSolved = q.solvedStatus && q.solvedStatus[blankIndex];
             let ansText = q.answers[blankIndex];
-            let userAns = q.userAnswers ? q.userAnswers[blankIndex] : "";
+            let userAns = q.userAnswers ? q.userAnswers[blankIndex] : null;
             let idx = blankIndex;
             blankIndex++;
 
-            // 정답 길이에 따라 입력창 너비 동적 계산
             let inputWidth = Math.max(ansText.length * 16 + 20, 70);
 
             if (isSolved) {
@@ -677,11 +687,14 @@ function renderExam(testData, title) {
                     <input class="inline-input status-correct" style="width:${inputWidth}px;" value="${ansText}" disabled readonly>
                 </span>`;
             } else {
-                let statusClass = userAns ? "status-wrong" : "";
-                let hintHtml = userAns ? `<span class="inline-wrong-hint">(${ansText})</span>` : "";
+                // null(미채점)이 아닐 때(즉, 제출 후 오답이거나 공백 제출인 경우) 오답 스타일 적용
+                let isGraded = userAns !== null;
+                let statusClass = isGraded ? "status-wrong" : "";
+                let hintHtml = isGraded ? `<span class="inline-wrong-hint">(${ansText})</span>` : "";
+                let displayVal = userAns === null ? "" : userAns;
                 
                 return `<span class="inline-blank-container">
-                    <input class="inline-input ${statusClass}" id="ans_${i}_${idx}" style="width:${inputWidth}px;" placeholder="${num}" value="${userAns}" enterkeyhint="next">
+                    <input class="inline-input ${statusClass}" id="ans_${i}_${idx}" style="width:${inputWidth}px;" placeholder="${num}" value="${displayVal}" enterkeyhint="next">
                     ${hintHtml}
                 </span>`;
             }
@@ -741,12 +754,12 @@ function grade() {
             let user = (inputEl.value || "").trim();
             let correct = q.answers[j].trim();
 
-            q.userAnswers[j] = user;
+            q.userAnswers[j] = user; // 공백인 경우 "" 저장
 
-            if (user === correct) {
+            if (user === correct && user !== "") {
                 q.solvedStatus[j] = true;
             } else {
-                hasWrong = true;
+                hasWrong = true; // 틀렸거나 공백인 경우 오답 처리
             }
         }
     });
@@ -771,8 +784,8 @@ function retryWrongTests() {
     currentTest.forEach((q) => {
         let hasUnsolved = q.solvedStatus.some(status => status === false);
         if (hasUnsolved) {
-            // 틀린 항목의 이전 사용자 입력값 초기화
-            q.userAnswers = q.userAnswers.map((ans, idx) => q.solvedStatus[idx] ? ans : "");
+            // 틀린 빈칸은 null(미채점) 상태로 리셋하여 다시 풀 수 있게 함
+            q.userAnswers = q.userAnswers.map((ans, idx) => q.solvedStatus[idx] ? ans : null);
             wrongQuestions.push(q);
         }
     });
