@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v14.0</title>
+<title>Slot Exam System v15.0</title>
 
 <style>
 body {
@@ -86,14 +86,13 @@ button {
 
 /* 問題表示 */
 .question {
-    padding: 12px;
+    padding: 15px;
     border-left: 4px solid #2d6cdf;
     background: #fafafa;
     margin-top: 12px;
     font-size: 15px;
-    line-height: 1.6;
+    line-height: 1.8;
     position: relative;
-    white-space: pre-wrap; /* 줄바꿈 자연스럽게 반영 */
 }
 
 .tag-badge {
@@ -111,11 +110,23 @@ button {
 /* 空欄ボックス */
 .blankBox {
     display: inline-block;
-    width: 60px;
-    height: 16px;
+    min-width: 50px;
+    padding: 0 4px;
     border-bottom: 2px solid #333;
     margin: 0 4px;
-    vertical-align: middle;
+    text-align: center;
+    font-weight: bold;
+    color: #2d6cdf;
+}
+
+/* 正解時のハイライト表示 */
+.correctHighlight {
+    display: inline-block;
+    padding: 0 4px;
+    border-bottom: 2px solid #d32f2f;
+    color: #d32f2f;
+    font-weight: bold;
+    margin: 0 2px;
 }
 
 /* 解答エリア */
@@ -133,18 +144,6 @@ button {
     padding: 10px;
     border-radius: 6px;
     border: 1px solid #ccc;
-    font-size: 15px;
-}
-
-/* 이미 맞춘 정답 표시용 스타일 */
-.solvedBox {
-    flex: 1;
-    padding: 10px;
-    border-radius: 6px;
-    background: #eef9f1;
-    border: 1px solid #27ae60;
-    color: #d32f2f;
-    font-weight: bold;
     font-size: 15px;
 }
 
@@ -257,7 +256,7 @@ small { color: gray; font-size: 12px; }
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v14.0</div>
+<div class="top">📦 SLOT EXAM SYSTEM v15.0</div>
 
 <!-- タブ切り替え -->
 <div class="tab">
@@ -281,13 +280,12 @@ small { color: gray; font-size: 12px; }
 <!-- ================= 試験画面 ================= -->
 <div id="examArea" class="card hidden">
 <h3>🎯 試験作成</h3>
-<!-- 💡 요청에 따라 'タグ別', '判例別' 2가지 탭으로 구성 -->
 <div class="tab">
 <button id="modeTag" class="active">タグ別</button>
 <button id="modeCase">判例別</button>
 </div>
 
-<!-- タグ別モード (전체 무작위 및 특정 태그 무작위 겸용) -->
+<!-- タグ別モード -->
 <div id="tagMode">
     <span class="form-label">🏷️ タグを選択 (出題範囲)</span>
     <select id="tagSelect"></select>
@@ -351,6 +349,12 @@ let currentTest = [];
 let examMode = "tag";
 let editingIndex = null; 
 
+// 丸数字リスト (①〜⑳)
+const circNums = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩","⑪","⑫","⑬","⑭","⑮","⑯","⑰","⑱","⑲","Snapshot"];
+function getCircNum(index) {
+    return circNums[index] || `(${index + 1})`;
+}
+
 onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
         const data = docSnap.data();
@@ -375,12 +379,11 @@ function refreshDropdowns() {
     renderTagSelect();
 }
 
-/* 💡 **굵은글씨** 및 개행 텍스트 렌더링 변환 함수 */
 function formatText(str) {
     if (!str) return "";
-    // **텍스트** -> <b>텍스트</b> 변환
-    let formatted = str.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
-    return formatted;
+    return str
+        .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
+        .replace(/\n/g, "<br>");
 }
 
 /* ================= タブ切り替え ================= */
@@ -502,14 +505,23 @@ function renderDB() {
         html += `<div class="group"><div class="group-title">${group}</div>`;
         grouped[group].forEach(q => {
             let tagHtml = q.tags ? q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("") : "";
+            let noteHtml = q.note ? `<small>${formatText(q.note)}</small><br>` : "";
+            
+            // DB 목록에서도 숫자 기호 표시
+            let idxCounter = 0;
+            let formattedQ = formatText(q.question).replace(/\{.*?\}/g, () => {
+                let num = getCircNum(idxCounter++);
+                return `<span class="blankBox">${num} ___</span>`;
+            });
+
             html += `
             <div class="question">
                 <div style="float:right; display:flex; gap:5px;">
                     <button class="btn-edit-q" data-idx="${q._idx}" style="background:#f39c12; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">修正</button>
                     <button class="btn-delete" data-idx="${q._idx}" style="background:red; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">削除</button>
                 </div>
-                <small>${formatText(q.note || "")}</small><br>
-                ${formatText(q.question)}<br>
+                ${noteHtml}
+                ${formattedQ}<br>
                 ${tagHtml}
             </div>`;
         });
@@ -598,7 +610,7 @@ function resetGradeButtons() {
 function prepareTestData(rawList) {
     return rawList.map(q => ({
         ...q,
-        solvedStatus: new Array(q.answers.length).fill(false) // 각 빈칸별 정답 맞춤 여부 초기화
+        solvedStatus: new Array(q.answers.length).fill(false)
     }));
 }
 
@@ -635,40 +647,53 @@ function makeCaseTest() {
     resetGradeButtons();
 }
 
-/* 💡 시험 화면 렌더링 함수 (이미 맞춘 항목은 붉은 글씨 고정 처리) */
+/* 💡 試験画面レンダリング (①, ② 번호 및 정답 빨간색 하이라이트 반영) */
 function renderExam(testData, title) {
     let html = "";
     html += `<div class="examSession"><div class="examHeader">${title}</div>`;
 
     testData.forEach((q, i) => {
-        // 문제 지문 본문 서식 적용
         let formattedQ = formatText(q.question);
-        let masked = formattedQ.replace(/\{.*?\}/g, `<span class="blankBox"></span>`);
-        let inputs = "";
+        
+        // 문제문 빈칸 변환
+        let blankIndex = 0;
+        let masked = formattedQ.replace(/\{.*?\}/g, () => {
+            let num = getCircNum(blankIndex);
+            let isSolved = q.solvedStatus && q.solvedStatus[blankIndex];
+            let ansText = q.answers[blankIndex];
+            let currentIdx = blankIndex;
+            blankIndex++;
 
+            if (isSolved) {
+                return `<span class="correctHighlight">${num} ${ansText}</span>`;
+            } else {
+                return `<span class="blankBox">${num} ___</span>`;
+            }
+        });
+
+        // 답안 입력창 생성 (정답 맞춘 부분은 입력창 숨김)
+        let inputs = "";
         for (let j = 0; j < q.answers.length; j++) {
-            // 💡 이미 맞춰서 solvedStatus가 true인 항목은 빨간 글씨 정답 박스로 채움
+            let num = getCircNum(j);
             if (q.solvedStatus && q.solvedStatus[j]) {
-                inputs += `
-                <div class="answerRow">
-                    <div class="solvedBox">空欄 ${j+1}: ${q.answers[j]} (正解済)</div>
-                    <div class="result ok">O</div>
-                </div>`;
+                // 이미 맞춘 답안은 입력 창을 띄우지 않음
             } else {
                 inputs += `
                 <div class="answerRow">
-                    <input class="answerBox" id="ans_${i}_${j}" placeholder="空欄 ${j+1} の解答" enterkeyhint="next">
+                    <input class="answerBox" id="ans_${i}_${j}" placeholder="${num} 의 解答" enterkeyhint="next">
                     <div class="result" id="res_${i}_${j}"></div>
                 </div>`;
             }
         }
 
+        let noteHtml = q.note ? `<small>${formatText(q.note)}</small><br>` : "";
+
         html += `
         <div class="question">
             <b>${i + 1}. ${q.caseName || ""}</b><br>
-            <small>${formatText(q.note || "")}</small><br>
+            ${noteHtml}
             ${masked}
-            ${inputs}
+            <div style="margin-top: 10px;">${inputs}</div>
         </div>`;
     });
 
@@ -704,7 +729,6 @@ function grade() {
 
     currentTest.forEach((q, i) => {
         for (let j = 0; j < q.answers.length; j++) {
-            // 이미 이전에 맞춘 항목은 건너뜀
             if (q.solvedStatus && q.solvedStatus[j]) continue;
 
             const inputEl = document.getElementById(`ans_${i}_${j}`);
@@ -716,15 +740,14 @@ function grade() {
             let row = box.parentElement;
 
             if (user === correct) {
-                box.innerHTML = "O";
-                box.className = "result ok";
-                q.solvedStatus[j] = true; // 맞춘 항목 등록
+                q.solvedStatus[j] = true;
             } else {
                 box.innerHTML = "X";
                 box.className = "result no";
                 hasWrong = true;
                 inputEl.value = user; 
 
+                let num = getCircNum(j);
                 let hintId = `hint_${i}_${j}`;
                 if (!document.getElementById(hintId)) {
                     let hint = document.createElement("div");
@@ -737,6 +760,9 @@ function grade() {
         }
     });
 
+    // 화면 재채점 및 재출력
+    renderExam(currentTest, document.querySelector(".examHeader").innerText);
+
     if (hasWrong) {
         const btnGrade = document.getElementById("btnGrade");
         btnGrade.className = "half";
@@ -746,15 +772,13 @@ function grade() {
         alert("満点です！お見事！");
         resetGradeButtons();
     }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-/* ================= 💡 틀린 빈칸만 다시 풀기 ================= */
+/* ================= 間違えた問題のみ再出題 ================= */
 function retryWrongTests() {
     let wrongQuestions = [];
 
     currentTest.forEach((q) => {
-        // 빈칸 중 하나라도 아직 못 맞춘 항목이 남아있다면 재출시 대상에 포함
         let hasUnsolved = q.solvedStatus.some(status => status === false);
         if (hasUnsolved) {
             wrongQuestions.push(q);
