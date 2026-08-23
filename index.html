@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v16.2</title>
+<title>Slot Exam System v16.5</title>
 
 <style>
 body {
@@ -91,10 +91,14 @@ button {
     background: #fafafa;
     margin-top: 12px;
     font-size: 15px;
-    line-height: 2.0;
+    line-height: 1.8;
     position: relative;
-    /* 연속 공백 및 스페이스가 사라지지 않고 그대로 유지되도록 설정 */
-    white-space: pre-wrap; 
+}
+
+/* 문제 본문 전용 스타일 */
+.q-body {
+    white-space: pre-wrap;
+    margin-top: 6px;
 }
 
 .tag-badge {
@@ -105,24 +109,25 @@ button {
     padding: 3px 8px;
     border-radius: 12px;
     margin-right: 5px;
-    margin-top: 5px;
+    margin-top: 4px;
     font-weight: bold;
-    white-space: normal;
 }
 
 /* 인라인 빈칸 입력창 */
 .inline-blank-container {
     display: inline-flex;
+    flex-wrap: wrap; /* 빈칸과 힌트가 넘치면 자동 줄바꿈 */
     align-items: center;
     vertical-align: middle;
     margin: 0 3px;
-    white-space: normal;
+    max-width: 100%;
 }
 
 .inline-input {
     display: inline-block;
     width: auto;
     min-width: 80px;
+    max-width: 100%; /* 화면 폭을 넘지 않도록 제한 */
     padding: 4px 8px;
     margin: 0;
     font-size: 15px;
@@ -133,7 +138,7 @@ button {
     color: #333;
     outline: none;
     text-align: center;
-    box-sizing: content-box;
+    box-sizing: border-box;
 }
 
 /* 채점 상태 스타일 */
@@ -150,12 +155,15 @@ button {
     color: #d93025;
 }
 
+/* 오답 정답 힌트 (자동 줄바꿈 설정) */
 .inline-wrong-hint {
     font-size: 13px;
     font-weight: bold;
     color: #d93025;
     margin-left: 4px;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-all;
+    display: inline;
 }
 
 .blankSymbol {
@@ -165,18 +173,19 @@ button {
     border-bottom: 2px solid #2d6cdf;
     padding: 0 4px;
     margin: 0 2px;
-    white-space: normal;
 }
 
-/* 문단 들여쓰기 클래스 (여백 불필요 요소 제거) */
+/* 문단 들여쓰기 클래스 */
 .indent-block {
-    display: block;
+    display: inline-block;
     padding-left: 1.5em;
-    margin: 2px 0;
+    margin: 0;
+    width: calc(100% - 1.5em);
+    vertical-align: top;
 }
 
 .hidden { display: none !important; }
-small { color: gray; font-size: 12px; white-space: normal; }
+small { color: gray; font-size: 12px; }
 
 /* DBグループ */
 .group {
@@ -261,7 +270,7 @@ small { color: gray; font-size: 12px; white-space: normal; }
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v16.2</div>
+<div class="top">📦 SLOT EXAM SYSTEM v16.5</div>
 
 <!-- タブ切り替え -->
 <div class="tab">
@@ -275,7 +284,7 @@ small { color: gray; font-size: 12px; white-space: normal; }
 <input id="caseName" placeholder="判例名・事件名">
 <input id="note" placeholder="解説・注意点など">
 <input id="tags" placeholder="タグ (カンマ(,)で複数入力可. 例: 人身の自由, 集会の自由)">
-<textarea id="qText" rows="5" placeholder="問題文 ( 空欄: {正解} / 強調: **テキスト** / 들여쓰기: > 텍스트 )"></textarea>
+<textarea id="qText" rows="5" placeholder="問題文 ( 空欄: {正解} / 強調: **テキスト** / 들여쓰기: > テキスト )"></textarea>
 <button id="btnAddQ">追加する</button>
 <hr>
 <button id="btnToggleDB">📚 登録問題の一覧 表示/非表示</button>
@@ -354,9 +363,8 @@ let currentTest = [];
 let examMode = "tag";
 let editingIndex = null; 
 
-const circNums = ["①","②","③","④","⑤","⑥","⑦","⑧","⑨","⑩","⑪","⑫","⑬","⑭","⑮","⑯","⑰","⑱","⑲","⑯"];
 function getCircNum(index) {
-    return circNums[index] || `(${index + 1})`;
+    return `(${index + 1})`;
 }
 
 onSnapshot(docRef, (docSnap) => {
@@ -383,40 +391,24 @@ function refreshDropdowns() {
     renderTagSelect();
 }
 
-/* 텍스트 포맷터 개선: 줄바꿈과 들여쓰기 블록의 중복 여백 문제 해결 */
 function formatText(str) {
     if (!str) return "";
     
-    // 강하게 강조 처리
     let formatted = str.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
-    
-    // 줄 단위로 분할하여 > 들여쓰기 블록 처리
     let lines = formatted.split("\n");
     let resultLines = lines.map(line => {
-        if (line.trim().startsWith("&gt;")) {
-            let content = line.trim().replace(/^&gt;\s?/, "");
-            return `<div class="indent-block">${content}</div>`;
-        } else if (line.trim().startsWith(">")) {
-            let content = line.trim().replace(/^>\s?/, "");
-            return `<div class="indent-block">${content}</div>`;
+        let trimmed = line.trim();
+        if (trimmed.startsWith("&gt;")) {
+            let content = trimmed.replace(/^&gt;\s?/, "");
+            return `<span class="indent-block">${content}</span>`;
+        } else if (trimmed.startsWith(">")) {
+            let content = trimmed.replace(/^>\s?/, "");
+            return `<span class="indent-block">${content}</span>`;
         }
         return line;
     });
 
-    // 일반 줄간의 연결에만 <br> 추가
-    let finalHtml = "";
-    for (let i = 0; i < resultLines.length; i++) {
-        finalHtml += resultLines[i];
-        if (i < resultLines.length - 1) {
-            // 들여쓰기 태그 전후로 불필요한 <br>가 중복 삽입되는 것 방지
-            let currIsIndent = resultLines[i].includes("class=\"indent-block\"");
-            let nextIsIndent = resultLines[i+1].includes("class=\"indent-block\"");
-            if (!currIsIndent && !nextIsIndent) {
-                finalHtml += "<br>";
-            }
-        }
-    }
-    return finalHtml;
+    return resultLines.join("\n");
 }
 
 /* ================= タブ切り替え ================= */
@@ -543,8 +535,8 @@ function renderDB() {
     sortedKeys.forEach(group => {
         html += `<div class="group"><div class="group-title">${group}</div>`;
         grouped[group].forEach(q => {
-            let tagHtml = q.tags ? q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("") : "";
-            let noteHtml = q.note ? `<small>${formatText(q.note)}</small><br>` : "";
+            let tagHtml = q.tags && q.tags.length > 0 ? `<div>${q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("")}</div>` : "";
+            let noteHtml = q.note ? `<div><small>${formatText(q.note)}</small></div>` : "";
             
             let idxCounter = 0;
             let formattedQ = formatText(q.question).replace(/\{.*?\}/g, () => {
@@ -552,16 +544,7 @@ function renderDB() {
                 return `<span class="blankSymbol">${num} ___</span>`;
             });
 
-            html += `
-            <div class="question">
-                <div style="float:right; display:flex; gap:5px;">
-                    <button class="btn-edit-q" data-idx="${q._idx}" style="background:#f39c12; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">修正</button>
-                    <button class="btn-delete" data-idx="${q._idx}" style="background:red; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">削除</button>
-                </div>
-                ${noteHtml}
-                ${formattedQ}<br>
-                ${tagHtml}
-            </div>`;
+            html += `<div class="question"><div style="float:right; display:flex; gap:5px;"><button class="btn-edit-q" data-idx="${q._idx}" style="background:#f39c12; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">修正</button><button class="btn-delete" data-idx="${q._idx}" style="background:red; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">削除</button></div>${tagHtml}${noteHtml}<div class="q-body">${formattedQ}</div></div>`;
         });
         html += `</div>`;
     });
@@ -713,34 +696,21 @@ function renderExam(testData, title) {
             let inputWidth = Math.max(ansText.length * 16 + 20, 70);
 
             if (isSolved) {
-                return `<span class="inline-blank-container">
-                    <input class="inline-input status-correct" style="width:${inputWidth}px;" value="${ansText}" disabled readonly>
-                </span>`;
+                return `<span class="inline-blank-container"><input class="inline-input status-correct" style="width:${inputWidth}px;" value="${ansText}" disabled readonly></span>`;
             } else {
                 let isGraded = userAns !== null;
                 let statusClass = isGraded ? "status-wrong" : "";
                 let hintHtml = isGraded ? `<span class="inline-wrong-hint">(${ansText})</span>` : "";
                 let displayVal = userAns === null ? "" : userAns;
                 
-                return `<span class="inline-blank-container">
-                    <input class="inline-input ${statusClass}" id="ans_${i}_${idx}" style="width:${inputWidth}px;" placeholder="${num}" value="${displayVal}" enterkeyhint="next">
-                    ${hintHtml}
-                </span>`;
+                return `<span class="inline-blank-container"><input class="inline-input ${statusClass}" id="ans_${i}_${idx}" style="width:${inputWidth}px;" placeholder="${num}" value="${displayVal}" enterkeyhint="next">${hintHtml}</span>`;
             }
         });
 
-        let tagHtml = q.tags && q.tags.length > 0 
-            ? `<div style="margin-bottom: 5px;">${q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("")}</div>` 
-            : "";
-        let noteHtml = q.note ? `<small>${formatText(q.note)}</small><br>` : "";
+        let tagHtml = q.tags && q.tags.length > 0 ? `<div>${q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("")}</div>` : "";
+        let noteHtml = q.note ? `<div><small>${formatText(q.note)}</small></div>` : "";
 
-        html += `
-        <div class="question">
-            <b>${i + 1}. ${q.caseName || ""}</b><br>
-            ${tagHtml}
-            ${noteHtml}
-            ${masked}
-        </div>`;
+        html += `<div class="question"><b>${i + 1}. ${q.caseName || ""}</b>${tagHtml}${noteHtml}<div class="q-body">${masked}</div></div>`;
     });
 
     html += `</div>`;
