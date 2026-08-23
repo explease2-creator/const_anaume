@@ -697,11 +697,15 @@ function renderExam(testData, title) {
             }
         }
 
+        let tagHtml = q.tags && q.tags.length > 0 
+            ? `<div style="margin-bottom: 5px;">${q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("")}</div>` 
+            : "";
         let noteHtml = q.note ? `<small>${formatText(q.note)}</small><br>` : "";
 
         html += `
         <div class="question">
             <b>${i + 1}. ${q.caseName || ""}</b><br>
+            ${tagHtml}
             ${noteHtml}
             ${masked}
             <div style="margin-top: 10px;">${inputs}</div>
