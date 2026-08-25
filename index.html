@@ -116,7 +116,7 @@ button {
 /* 인라인 빈칸 입력창 */
 .inline-blank-container {
     display: inline-flex;
-    flex-wrap: wrap; /* 빈칸과 힌트가 넘치면 자동 줄바꿈 */
+    flex-wrap: wrap; 
     align-items: center;
     vertical-align: middle;
     margin: 0 3px;
@@ -127,7 +127,7 @@ button {
     display: inline-block;
     width: auto;
     min-width: 80px;
-    max-width: 100%; /* 화면 폭을 넘지 않도록 제한 */
+    max-width: 100%; 
     padding: 4px 8px;
     margin: 0;
     font-size: 15px;
@@ -182,6 +182,43 @@ button {
     margin: 0;
     width: calc(100% - 1.5em);
     vertical-align: top;
+}
+
+/* 하이라이트 스타일 (얇은 검정 테두리 적용) */
+.hl, .hl-yellow {
+    background-color: #fff2ac;
+    border: 1px solid #333;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 2px 0;
+}
+
+.hl-orange {
+    background-color: #ffe0b2;
+    border: 1px solid #333;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 2px 0;
+}
+
+.hl-blue {
+    background-color: #e1f5fe;
+    border: 1px solid #333;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 2px 0;
+}
+
+.hl-green {
+    background-color: #e8f5e9;
+    border: 1px solid #333;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 2px 0;
 }
 
 .hidden { display: none !important; }
@@ -272,26 +309,23 @@ small { color: gray; font-size: 12px; }
 
 <div class="top">📦 SLOT EXAM SYSTEM v16.5</div>
 
-<!-- タブ切り替え -->
 <div class="tab">
 <button id="btnDB" class="active">📚 データベース</button>
 <button id="btnExam">🎯 穴埋め試験</button>
 </div>
 
-<!-- ================= DB管理画面 ================= -->
 <div id="dbArea" class="card">
 <h3>📥 問題登録</h3>
 <input id="caseName" placeholder="判例名・事件名">
 <input id="note" placeholder="解説・注意点など">
 <input id="tags" placeholder="タグ (カンマ(,)で複数入力可. 例: 人身の自由, 集会の自由)">
-<textarea id="qText" rows="5" placeholder="問題文 ( 空欄: {正解} / 強調: **テキスト** / 들여쓰기: > テキスト )"></textarea>
+<textarea id="qText" rows="5" placeholder="問題文 ( 空欄: {正解} / 強調: **テキスト** / 들여쓰기: > テキスト / 하이라이트: ==텍스트== または [orange: 텍스트] )"></textarea>
 <button id="btnAddQ">追加する</button>
 <hr>
 <button id="btnToggleDB">📚 登録問題の一覧 表示/非表示</button>
 <div id="dbView" class="hidden"></div>
 </div>
 
-<!-- ================= 試験画面 ================= -->
 <div id="examArea" class="card hidden">
 <h3>🎯 試験作成</h3>
 <div class="tab">
@@ -299,7 +333,6 @@ small { color: gray; font-size: 12px; }
 <button id="modeCase">判例別</button>
 </div>
 
-<!-- タグ別モード -->
 <div id="tagMode">
     <span class="form-label">🏷️ タグを選択 (出題範囲)</span>
     <select id="tagSelect"></select>
@@ -309,7 +342,6 @@ small { color: gray; font-size: 12px; }
     <button id="btnStartTag">試験開始</button>
 </div>
 
-<!-- 判例別モード -->
 <div id="caseMode" class="hidden">
     <span class="form-label">📘 判例を選択</span>
     <select id="caseSelect"></select>
@@ -319,13 +351,11 @@ small { color: gray; font-size: 12px; }
 <div id="examOut"></div>
 </div>
 
-<!-- 下部固定操作バー -->
 <div id="examCtrlArea" class="gradeBar hidden">
     <button id="btnGrade" style="background: #27ae60;">🎯 答え合わせ（採点）</button>
     <button id="btnRetryWrong" class="hidden" style="background: #e67e22; margin-left: 10px;">🔁 誤答のみ再出題</button>
 </div>
 
-<!-- 📱 修正モーダル -->
 <div id="editModal" class="modal" style="display: none;">
     <div class="modal-content">
         <h3>✏️ 問題の修正</h3>
@@ -340,7 +370,6 @@ small { color: gray; font-size: 12px; }
     </div>
 </div>
 
-<!-- ================= JAVASCRIPT ================= -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
@@ -394,7 +423,17 @@ function refreshDropdowns() {
 function formatText(str) {
     if (!str) return "";
     
+    // 1. **텍스트** -> 굵은 글씨
     let formatted = str.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
+
+    // 2. ==텍스트== -> 기본 노란색 하이라이트 (검정 테두리)
+    formatted = formatted.replace(/==(.*?)==/g, '<span class="hl">$1</span>');
+
+    // 3. [orange: 텍스트], [blue: 텍스트], [green: 텍스트], [yellow: 텍스트] -> 색상 지정 하이라이트
+    formatted = formatted.replace(/\[(orange|blue|green|yellow):(.*?)\]/g, (match, color, text) => {
+        return `<span class="hl-${color}">${text.trim()}</span>`;
+    });
+
     let lines = formatted.split("\n");
     let resultLines = lines.map(line => {
         let trimmed = line.trim();
