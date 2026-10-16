@@ -3,22 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Slot Exam System v16.5</title>
+<title>法学 判例穴埋め試験 SYSTEM v17.8</title>
 
 <style>
 body {
     font-family: -apple-system, "Helvetica Neue", "Segoe UI", sans-serif;
-    background: #f4f6f8;
+    background: #fbfbfc;
     margin: 0;
     padding: 15px;
     padding-bottom: 90px; 
     -webkit-text-size-adjust: 100%;
+    color: #333;
 }
 
 .top {
     font-size: 18px;
     font-weight: bold;
     margin-bottom: 10px;
+    color: #c2410c;
+}
+
+/* 🏛️ 최상위 7법 과목 선택 탭 */
+.subject-tab {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+    background: #f3f4f6;
+    padding: 6px;
+    border-radius: 10px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.subject-tab::-webkit-scrollbar {
+    display: none;
+}
+
+.subject-tab button {
+    flex: 0 0 auto;
+    padding: 9px 13px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: #6b7280;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+    margin-top: 0;
+    transition: all 0.2s ease;
+}
+
+.subject-tab button.active {
+    background: #ea580c;
+    color: white;
+    box-shadow: 0 2px 6px rgba(234, 88, 12, 0.25);
 }
 
 /* 카드 */
@@ -27,10 +66,11 @@ body {
     padding: 15px;
     border-radius: 10px;
     margin-bottom: 15px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    border: 1px solid #f3f4f6;
 }
 
-/* タブ */
+/* 機能 タブ */
 .tab {
     display: flex;
     gap: 8px;
@@ -42,15 +82,19 @@ body {
     padding: 12px;
     border: none;
     border-radius: 8px;
-    background: #ddd;
+    background: #e5e7eb;
+    color: #4b5563;
     font-size: 14px;
     font-weight: bold;
     cursor: pointer;
+    margin-top: 0;
+    transition: background 0.2s ease;
 }
 
 .tab button.active {
-    background: #2d6cdf;
+    background: #f97316;
     color: white;
+    box-shadow: 0 2px 5px rgba(249, 115, 22, 0.2);
 }
 
 /* 入力項目 */
@@ -59,15 +103,21 @@ textarea, input, select {
     padding: 12px;
     margin-top: 6px;
     border-radius: 8px;
-    border: 1px solid #ccc;
+    border: 1px solid #d1d5db;
     box-sizing: border-box;
     font-size: 16px; 
+    transition: border-color 0.2s ease;
+}
+
+textarea:focus, input:focus, select:focus {
+    outline: none;
+    border-color: #f97316;
 }
 
 .form-label {
     font-size: 13px;
     font-weight: bold;
-    color: #555;
+    color: #6b7280;
     margin-top: 10px;
     display: block;
 }
@@ -77,22 +127,28 @@ button {
     margin-top: 8px;
     border: none;
     border-radius: 8px;
-    background: #2d6cdf;
+    background: #ea580c;
     color: white;
     font-size: 15px;
     font-weight: bold;
     cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+button:active {
+    opacity: 0.9;
 }
 
 /* 問題表示 */
 .question {
     padding: 15px;
-    border-left: 4px solid #2d6cdf;
-    background: #fafafa;
+    border-left: 4px solid #f97316;
+    background: #fafaf9;
     margin-top: 12px;
     font-size: 15px;
     line-height: 1.8;
     position: relative;
+    border-radius: 0 8px 8px 0;
 }
 
 /* 문제 본문 전용 스타일 */
@@ -101,10 +157,38 @@ button {
     margin-top: 6px;
 }
 
+/* 🏷️ 헤더 및 리스트 서식 스타일 (###, ##, #, -) - 강제 개행 없음 */
+.custom-h1 {
+    font-size: 25px;
+    font-weight: bold;
+    color: #9a3412;
+    line-height: 1.4;
+}
+
+.custom-h2 {
+    font-size: 22px;
+    font-weight: bold;
+    color: #c2410c;
+    line-height: 1.4;
+}
+
+.custom-h3 {
+    display: inline-block;
+    font-size: 18px;
+    font-weight: bold;
+    color: #ea580c;
+    padding-left: 0.75em; /* 기존 1.5em에서 절반으로 축소 */
+    line-height: 1.4;
+}
+
+.custom-list {
+    font-weight: bold;
+}
+
 .tag-badge {
     display: inline-block;
-    background: #e1ecf8;
-    color: #2d6cdf;
+    background: #ffedd5;
+    color: #c2410c;
     font-size: 11px;
     padding: 3px 8px;
     border-radius: 12px;
@@ -116,7 +200,7 @@ button {
 /* 인라인 빈칸 입력창 */
 .inline-blank-container {
     display: inline-flex;
-    flex-wrap: wrap; /* 빈칸과 힌트가 넘치면 자동 줄바꿈 */
+    flex-wrap: wrap;
     align-items: center;
     vertical-align: middle;
     margin: 0 3px;
@@ -127,12 +211,12 @@ button {
     display: inline-block;
     width: auto;
     min-width: 80px;
-    max-width: 100%; /* 화면 폭을 넘지 않도록 제한 */
+    max-width: 100%;
     padding: 4px 8px;
     margin: 0;
     font-size: 15px;
     font-weight: bold;
-    border: 2px solid #2d6cdf;
+    border: 2px solid #f97316;
     border-radius: 6px;
     background: #fff;
     color: #333;
@@ -143,23 +227,23 @@ button {
 
 /* 채점 상태 스타일 */
 .inline-input.status-correct {
-    background-color: #e8f0fe;
-    border-color: #2d6cdf;
-    color: #2d6cdf;
+    background-color: #fff7ed;
+    border-color: #ea580c;
+    color: #ea580c;
     font-weight: bold;
 }
 
 .inline-input.status-wrong {
-    background-color: #fce8e6;
-    border-color: #d93025;
-    color: #d93025;
+    background-color: #fef2f2;
+    border-color: #dc2626;
+    color: #dc2626;
 }
 
-/* 오답 정답 힌트 (자동 줄바꿈 설정) */
+/* 오답 정답 힌트 */
 .inline-wrong-hint {
     font-size: 13px;
     font-weight: bold;
-    color: #d93025;
+    color: #dc2626;
     margin-left: 4px;
     white-space: normal;
     word-break: break-all;
@@ -168,37 +252,29 @@ button {
 
 .blankSymbol {
     display: inline-block;
-    color: #2d6cdf;
+    color: #ea580c;
     font-weight: bold;
-    border-bottom: 2px solid #2d6cdf;
+    border-bottom: 2px solid #ea580c;
     padding: 0 4px;
     margin: 0 2px;
 }
 
-/* 문단 들여쓰기 클래스 */
-.indent-block {
-    display: inline-block;
-    padding-left: 1.5em;
-    margin: 0;
-    width: calc(100% - 1.5em);
-    vertical-align: top;
-}
-
 .hidden { display: none !important; }
-small { color: gray; font-size: 12px; }
+small { color: #78716c; font-size: 12px; }
 
 /* DBグループ */
 .group {
     margin-bottom: 15px;
     padding: 10px;
     border-radius: 8px;
-    background: #f9f9f9;
+    background: #fdfdfd;
+    border: 1px solid #f3f4f6;
 }
 
 .group-title {
     font-weight: bold;
     font-size: 15px;
-    color: #2d6cdf;
+    color: #ea580c;
     margin-bottom: 5px;
 }
 
@@ -212,11 +288,11 @@ small { color: gray; font-size: 12px; }
     bottom: 0;
     left: 0;
     width: 100%;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(5px);
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(8px);
     padding: 12px;
     padding-bottom: calc(12px + env(safe-area-inset-bottom)); 
-    box-shadow: 0 -3px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 -3px 15px rgba(0,0,0,0.08);
     z-index: 999;
     display: flex;
     justify-content: center;
@@ -270,9 +346,20 @@ small { color: gray; font-size: 12px; }
 
 <body>
 
-<div class="top">📦 SLOT EXAM SYSTEM v16.5</div>
+<div class="top">📦 法学 穴埋め試験 SYSTEM v17.8</div>
 
-<!-- タブ切り替え -->
+<!-- 🏛️ 7법 최상위 과목 탭 -->
+<div class="subject-tab">
+    <button class="btn-subject active" data-subject="constitution" data-title="憲法">📜 憲法</button>
+    <button class="btn-subject" data-subject="admin" data-title="行政法">🏛️ 行政法</button>
+    <button class="btn-subject" data-subject="civil" data-title="民法">📘 民法</button>
+    <button class="btn-subject" data-subject="civ_pro" data-title="民事訴訟法">📑 民訴法</button>
+    <button class="btn-subject" data-subject="comm" data-title="商法">🏢 商法</button>
+    <button class="btn-subject" data-subject="penal" data-title="刑法">📕 刑法</button>
+    <button class="btn-subject" data-subject="crim_pro" data-title="刑事訴訟法">⚖️ 刑訴法</button>
+</div>
+
+<!-- 機能 タブ -->
 <div class="tab">
 <button id="btnDB" class="active">📚 データベース</button>
 <button id="btnExam">🎯 穴埋め試験</button>
@@ -280,20 +367,19 @@ small { color: gray; font-size: 12px; }
 
 <!-- ================= DB管理画面 ================= -->
 <div id="dbArea" class="card">
-<h3>📥 問題登録</h3>
-<input id="caseName" placeholder="判例名・事件名">
-<input id="note" placeholder="解説・注意点など">
+<h3 id="dbTitle" style="color: #c2410c; margin-top:0;">📥 [憲法] 問題登録</h3>
+<input id="caseName" placeholder="講義題名名">
 <input id="tags" placeholder="タグ (カンマ(,)で複数入力可. 例: 人身の自由, 集会の自由)">
-<textarea id="qText" rows="5" placeholder="問題文 ( 空欄: {正解} / 強調: **テキスト** / 들여쓰기: > テキスト )"></textarea>
+<textarea id="qText" rows="6" placeholder="問題文&#10;### 大見出し (# 表示, 25px)&#10;## 主題 (22px, 自動1., 2.)&#10;# 小主題 (18px, 自動1.1., インデント)&#10;- 項目 (太字, 自動(1) )&#10;空欄: {正解} / 強調: **テキスト**"></textarea>
 <button id="btnAddQ">追加する</button>
-<hr>
-<button id="btnToggleDB">📚 登録問題の一覧 表示/非表示</button>
+<hr style="border: 0; border-top: 1px solid #f3f4f6; margin: 15px 0;">
+<button id="btnToggleDB" style="background:#78716c;">📚 登録問題の一覧 表示/非表示</button>
 <div id="dbView" class="hidden"></div>
 </div>
 
 <!-- ================= 試験画面 ================= -->
 <div id="examArea" class="card hidden">
-<h3>🎯 試験作成</h3>
+<h3 id="examTitle" style="color: #c2410c; margin-top:0;">🎯 [憲法] 試験作成</h3>
 <div class="tab">
 <button id="modeTag" class="active">タグ別</button>
 <button id="modeCase">判例別</button>
@@ -321,21 +407,20 @@ small { color: gray; font-size: 12px; }
 
 <!-- 下部固定操作バー -->
 <div id="examCtrlArea" class="gradeBar hidden">
-    <button id="btnGrade" style="background: #27ae60;">🎯 答え合わせ（採点）</button>
-    <button id="btnRetryWrong" class="hidden" style="background: #e67e22; margin-left: 10px;">🔁 誤答のみ再出題</button>
+    <button id="btnGrade" style="background: #16a34a;">🎯 答え合わせ（採点）</button>
+    <button id="btnRetryWrong" class="hidden" style="background: #ea580c; margin-left: 10px;">🔁 誤答のみ再出題</button>
 </div>
 
 <!-- 📱 修正モーダル -->
 <div id="editModal" class="modal" style="display: none;">
     <div class="modal-content">
-        <h3>✏️ 問題の修正</h3>
+        <h3 style="color: #c2410c; margin-top:0;">✏️ 問題の修正</h3>
         <input id="editCaseName" placeholder="判例名・事件名">
-        <input id="editNote" placeholder="解説・注意点など">
         <input id="editTags" placeholder="タグ (カンマで区切る)">
         <textarea id="editQText" rows="6" placeholder="問題文"></textarea>
         <div class="modal-actions">
-            <button id="btnCancelEdit" style="background: #95a5a6;">キャンセル</button>
-            <button id="btnSaveEdit" style="background: #27ae60;">保存する</button>
+            <button id="btnCancelEdit" style="background: #9ca3af;">キャンセル</button>
+            <button id="btnSaveEdit" style="background: #ea580c;">保存する</button>
         </div>
     </div>
 </div>
@@ -356,7 +441,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const dbInstance = getFirestore(app);
-const docRef = doc(dbInstance, "exams", "slot_db_doc");
+
+/* ================= 🏛️ 과목 상태 및 Firestore 연결 관리 ================= */
+let currentSubject = "constitution";
+let currentSubjectTitle = "憲法";
+let docRef = null;
+let unsubscribeDoc = null;
 
 let db = []; 
 let currentTest = [];
@@ -367,18 +457,43 @@ function getCircNum(index) {
     return `(${index + 1})`;
 }
 
-onSnapshot(docRef, (docSnap) => {
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        db = data.questions ? data.questions : [];
-    } else {
-        db = [];
+function switchSubject(subjectKey, subjectTitle) {
+    currentSubject = subjectKey;
+    currentSubjectTitle = subjectTitle;
+
+    document.getElementById("dbTitle").textContent = `📥 [${currentSubjectTitle}] 問題登録`;
+    document.getElementById("examTitle").textContent = `🎯 [${currentSubjectTitle}] 試験作成`;
+
+    if (unsubscribeDoc) {
+        unsubscribeDoc();
     }
-    renderDB();
-    refreshDropdowns();
-});
+
+    if (currentSubject === "constitution") {
+        docRef = doc(dbInstance, "exams", "slot_db_doc");
+    } else if (currentSubject === "admin") {
+        docRef = doc(dbInstance, "admin_exam", "slot_db_doc");
+    } else {
+        docRef = doc(dbInstance, "slot_exam_db", currentSubject);
+    }
+
+    currentTest = [];
+    document.getElementById("examOut").innerHTML = "";
+    document.getElementById("examCtrlArea").classList.add("hidden");
+
+    unsubscribeDoc = onSnapshot(docRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            db = data.questions ? data.questions : [];
+        } else {
+            db = [];
+        }
+        renderDB();
+        refreshDropdowns();
+    });
+}
 
 async function saveToFirestore(newData) {
+    if (!docRef) return;
     try {
         await setDoc(docRef, { questions: newData });
     } catch (error) {
@@ -391,27 +506,69 @@ function refreshDropdowns() {
     renderTagSelect();
 }
 
+/* ================= 💡 서식 파서 (###, ##, #, -) ================= */
 function formatText(str) {
     if (!str) return "";
     
     let formatted = str.replace(/\*\*(.*?)\*\*/g, "<b>$1</b>");
     let lines = formatted.split("\n");
+
+    let h2Count = 0;   // ## 주제 카운터
+    let h3Count = 0;   // # 소주제 카운터
+    let dashCount = 0; // - 항목 전체 카운터
+
     let resultLines = lines.map(line => {
         let trimmed = line.trim();
-        if (trimmed.startsWith("&gt;")) {
-            let content = trimmed.replace(/^&gt;\s?/, "");
-            return `<span class="indent-block">${content}</span>`;
-        } else if (trimmed.startsWith(">")) {
-            let content = trimmed.replace(/^>\s?/, "");
-            return `<span class="indent-block">${content}</span>`;
+
+        // 1. ### 제목 룰 (# 하나 남김, 25px, Bold)
+        if (trimmed.startsWith("###")) {
+            let content = trimmed.replace(/^###\s?/, "");
+            return `<span class="custom-h1"># ${content}</span>`;
         }
+        
+        // 2. ## 주제 룰 (22px, Bold, 순차적 1., 2. 넘버링)
+        if (trimmed.startsWith("##")) {
+            h2Count++;
+            h3Count = 0;
+            let content = trimmed.replace(/^##\s?/, "");
+            return `<span class="custom-h2">${h2Count}. ${content}</span>`;
+        }
+        
+        // 3. # 소주제 룰 (18px, Bold, 0.75em 패딩, 1.1., 1.2. 넘버링)
+        if (trimmed.startsWith("#")) {
+            h3Count++;
+            let currentH2 = h2Count === 0 ? 1 : h2Count;
+            let content = trimmed.replace(/^#\s?/, "");
+            return `<span class="custom-h3">${currentH2}.${h3Count}. ${content}</span>`;
+        }
+
+        // 4. - 항목 룰 (주제/소주제 무관 전체 카운트 (1), (2) + 반각 스페이스 + Bold)
+        if (trimmed.startsWith("-")) {
+            dashCount++;
+            let content = trimmed.replace(/^-\s?/, "");
+            return `<span class="custom-list">(${dashCount}) ${content}</span>`;
+        }
+
         return line;
     });
 
     return resultLines.join("\n");
 }
 
-/* ================= タブ切り替え ================= */
+/* ================= 🏛️ 과목 탭 전환 이벤트 ================= */
+document.querySelectorAll(".btn-subject").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+        document.querySelectorAll(".btn-subject").forEach(b => b.classList.remove("active"));
+        const targetBtn = e.target.closest(".btn-subject");
+        targetBtn.classList.add("active");
+        
+        const subj = targetBtn.getAttribute("data-subject");
+        const title = targetBtn.getAttribute("data-title");
+        switchSubject(subj, title);
+    });
+});
+
+/* ================= 機能 タブ切り替え ================= */
 function showTab(tab) {
     const dbArea = document.getElementById("dbArea");
     const examArea = document.getElementById("examArea");
@@ -449,7 +606,6 @@ function parseTags(tagStr) {
 
 function addQ() {
     const caseName = document.getElementById("caseName").value;
-    const note = document.getElementById("note").value;
     const tagStr = document.getElementById("tags").value;
     const question = document.getElementById("qText").value;
 
@@ -461,7 +617,6 @@ function addQ() {
     db.push({
         id: db.length + 1,
         caseName,
-        note,
         tags,
         question,
         answers
@@ -470,7 +625,6 @@ function addQ() {
     saveToFirestore(db);
 
     document.getElementById("caseName").value = "";
-    document.getElementById("note").value = "";
     document.getElementById("tags").value = "";
     document.getElementById("qText").value = "";
 }
@@ -486,7 +640,6 @@ function openEditModal(index) {
     editingIndex = index;
     const q = db[index];
     document.getElementById("editCaseName").value = q.caseName || "";
-    document.getElementById("editNote").value = q.note || "";
     document.getElementById("editTags").value = q.tags ? q.tags.join(", ") : "";
     document.getElementById("editQText").value = q.question || "";
     document.getElementById("editModal").style.display = "flex";
@@ -506,7 +659,6 @@ function saveEdit() {
     let answers = [...question.matchAll(/\{(.*?)\}/g)].map(m => m[1]);
     
     db[editingIndex].caseName = document.getElementById("editCaseName").value;
-    db[editingIndex].note = document.getElementById("editNote").value;
     db[editingIndex].tags = parseTags(document.getElementById("editTags").value);
     db[editingIndex].question = question;
     db[editingIndex].answers = answers;
@@ -536,7 +688,6 @@ function renderDB() {
         html += `<div class="group"><div class="group-title">${group}</div>`;
         grouped[group].forEach(q => {
             let tagHtml = q.tags && q.tags.length > 0 ? `<div>${q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("")}</div>` : "";
-            let noteHtml = q.note ? `<div><small>${formatText(q.note)}</small></div>` : "";
             
             let idxCounter = 0;
             let formattedQ = formatText(q.question).replace(/\{.*?\}/g, () => {
@@ -544,7 +695,7 @@ function renderDB() {
                 return `<span class="blankSymbol">${num} ___</span>`;
             });
 
-            html += `<div class="question"><div style="float:right; display:flex; gap:5px;"><button class="btn-edit-q" data-idx="${q._idx}" style="background:#f39c12; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">修正</button><button class="btn-delete" data-idx="${q._idx}" style="background:red; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">削除</button></div>${tagHtml}${noteHtml}<div class="q-body">${formattedQ}</div></div>`;
+            html += `<div class="question"><div style="float:right; display:flex; gap:5px;"><button class="btn-edit-q" data-idx="${q._idx}" style="background:#f97316; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">修正</button><button class="btn-delete" data-idx="${q._idx}" style="background:#ef4444; padding:5px 8px; font-size:12px; color:white; border:none; border-radius:4px; cursor:pointer; margin:0;">削除</button></div>${tagHtml}<div class="q-body">${formattedQ}</div></div>`;
         });
         html += `</div>`;
     });
@@ -661,7 +812,10 @@ function makeTagTest() {
     let selectedQuestions = shuffle(pool).slice(0, n);
     currentTest = prepareTestData(selectedQuestions);
     
-    let title = selectedTag === "all" ? `🎯 ランダム試験 [全体] (${currentTest.length}問)` : `🏷️ タグ別試験 [#${selectedTag}] (${currentTest.length}問)`;
+    let title = selectedTag === "all" 
+        ? `🎯 [${currentSubjectTitle}] ランダム試験 [全体] (${currentTest.length}問)` 
+        : `🏷️ [${currentSubjectTitle}] タグ別試験 [#${selectedTag}] (${currentTest.length}問)`;
+    
     renderExam(currentTest, title);
     resetGradeButtons();
 }
@@ -672,14 +826,14 @@ function makeCaseTest() {
     let selected = selectEl.value;
     let selectedQuestions = db.filter(q => q && (q.caseName || "未分類") === selected);
     currentTest = prepareTestData(selectedQuestions);
-    renderExam(currentTest, `📘 判例別試験: ${selected}`);
+    renderExam(currentTest, `📘 [${currentSubjectTitle}] 判例別試験: ${selected}`);
     resetGradeButtons();
 }
 
 /* 💡 試験画面レンダリング */
 function renderExam(testData, title) {
     let html = "";
-    html += `<div class="examSession"><div class="examHeader">${title}</div>`;
+    html += `<div class="examSession"><div class="examHeader" style="font-size:16px; font-weight:bold; color:#ea580c; margin-bottom:12px;">${title}</div>`;
 
     testData.forEach((q, i) => {
         let formattedQ = formatText(q.question);
@@ -708,9 +862,8 @@ function renderExam(testData, title) {
         });
 
         let tagHtml = q.tags && q.tags.length > 0 ? `<div>${q.tags.map(t => `<span class="tag-badge">#${t}</span>`).join("")}</div>` : "";
-        let noteHtml = q.note ? `<div><small>${formatText(q.note)}</small></div>` : "";
 
-        html += `<div class="question"><b>${i + 1}. ${q.caseName || ""}</b>${tagHtml}${noteHtml}<div class="q-body">${masked}</div></div>`;
+        html += `<div class="question"><b>${i + 1}. ${q.caseName || ""}</b>${tagHtml}<div class="q-body">${masked}</div></div>`;
     });
 
     html += `</div>`;
@@ -790,7 +943,7 @@ function retryWrongTests() {
 
     if (wrongQuestions.length > 0) {
         currentTest = wrongQuestions;
-        renderExam(currentTest, `🔁 誤答復習試験 (${currentTest.length}問)`);
+        renderExam(currentTest, `🔁 [${currentSubjectTitle}] 誤答復習試験 (${currentTest.length}問)`);
         resetGradeButtons();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -810,6 +963,9 @@ document.getElementById("btnRetryWrong").addEventListener("click", retryWrongTes
 
 document.getElementById("btnCancelEdit").addEventListener("click", closeEditModal);
 document.getElementById("btnSaveEdit").addEventListener("click", saveEdit);
+
+// 🚀 초기 실행: 기본 과목(헌법) 로드 (기존 헌법 slot DB 연결)
+switchSubject("constitution", "憲法");
 
 </script>
 
